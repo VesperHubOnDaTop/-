@@ -1,6 +1,6 @@
 -- ============================================
--- AUTO MAIL SYSTEM V8 (Complete) - WITH AUTO CLAIM
--- เพิ่ม Auto Claim Mail Toggle
+-- AUTO MAIL SYSTEM V9.1 (Professional - Fixed Layout)
+-- แก้ไข Layout ปุ่มไม่เบียดกัน
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -30,15 +30,15 @@ local SelectedItems = {}
 local InventoryItems = {}
 local expandedCategories = {}
 local mailCount = 0
-local autoClaimEnabled = false -- 🔥 สถานะ Auto Claim
-local autoClaimTask = nil -- 🔥 Task สำหรับ Auto Claim
+local autoClaimEnabled = false
+local autoClaimTask = nil
 
 -- Drag variables
 local isDragging = false
 local dragInput, dragStart, startPos
 
 -- ============================================
--- ตัวแปรระบบค้นหาผู้เล่น
+-- ตัวแปรระบบค้นหา
 -- ============================================
 local selectedPlayer = nil
 local searchDebounce = false
@@ -52,7 +52,7 @@ local batchInfoLabel = nil
 local mailBadge = nil
 local claimAllBtn = nil
 local claimSingleBtn = nil
-local autoClaimBtn = nil -- 🔥 ปุ่ม Auto Claim
+local autoClaimBtn = nil
 local sendBtn = nil
 local totalLabel = nil
 local selectedLabel = nil
@@ -188,7 +188,6 @@ end
 -- 🔥 CLAIM MAIL SYSTEM
 -- ============================================
 
--- 🔥 เช็คเมลทั้งหมด
 function CheckAllMail()
     local success, inbox = pcall(function()
         return Mailbox.OpenInbox:Fire()
@@ -227,7 +226,6 @@ function CheckAllMail()
     return mailList, count
 end
 
--- 🔥 รับเมลทั้งหมด
 function ClaimAllMail()
     if isClaiming then
         UpdateStatus("⏳ กำลังรับเมลอยู่...", Color3.fromRGB(255, 200, 100))
@@ -283,7 +281,6 @@ function ClaimAllMail()
     UpdateMailCount()
 end
 
--- 🔥 รับเมลทีละ 1
 function ClaimSingleMail()
     if isClaiming then
         UpdateStatus("⏳ กำลังรับเมลอยู่...", Color3.fromRGB(255, 200, 100))
@@ -345,7 +342,6 @@ function ClaimSingleMail()
     UpdateMailCount()
 end
 
--- 🔥 อัปเดตจำนวนเมล
 function UpdateMailCount()
     local success, inbox = pcall(function()
         return Mailbox.OpenInbox:Fire()
@@ -476,7 +472,7 @@ function SendSingleMail(targetUserId, category, itemKey, count, note)
 end
 
 -- ============================================
--- 🔥 AUTO CLAIM MAIL (ทำงานอัตโนมัติ)
+-- 🔥 AUTO CLAIM MAIL
 -- ============================================
 function AutoClaimLoop()
     while autoClaimEnabled and screenGui and screenGui.Parent do
@@ -497,13 +493,11 @@ function AutoClaimLoop()
             
             UpdateMailCount()
         else
-            -- ไม่มีเมล เช็คใหม่ใน 30 วินาที
             if autoClaimEnabled then
                 UpdateStatus("🤖 Auto Claim: ไม่มีเมล รอตรวจสอบ...", Color3.fromRGB(200, 200, 200))
             end
         end
         
-        -- รอ 30 วินาที แล้วเช็คใหม่
         for i = 1, 30 do
             if not autoClaimEnabled or not screenGui or not screenGui.Parent then
                 return
@@ -513,31 +507,29 @@ function AutoClaimLoop()
     end
 end
 
--- 🔥 เปิด/ปิด Auto Claim
 function ToggleAutoClaim()
     autoClaimEnabled = not autoClaimEnabled
     
     if autoClaimEnabled then
-        -- เปิด Auto Claim
         if autoClaimBtn then
-            autoClaimBtn.Text = "⏸️ Auto Claim: ON"
+            autoClaimBtn.Text = "⏸️ Auto ON"
             autoClaimBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
             autoClaimBtn.BackgroundTransparency = 0.1
+            autoClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         end
         UpdateStatus("🤖 Auto Claim เปิดใช้งานแล้ว!", Color3.fromRGB(150, 255, 150))
         
-        -- เริ่มลูป Auto Claim
         if autoClaimTask then
             task.cancel(autoClaimTask)
             autoClaimTask = nil
         end
         autoClaimTask = task.spawn(AutoClaimLoop)
     else
-        -- ปิด Auto Claim
         if autoClaimBtn then
-            autoClaimBtn.Text = "▶️ Auto Claim: OFF"
+            autoClaimBtn.Text = "▶️ Auto OFF"
             autoClaimBtn.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
             autoClaimBtn.BackgroundTransparency = 0.3
+            autoClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         end
         UpdateStatus("⏸️ Auto Claim ปิดแล้ว", Color3.fromRGB(200, 200, 200))
         
@@ -660,28 +652,29 @@ local function CreateGUI()
     
     -- Main Frame
     mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 650, 0, 490)
-    mainFrame.Position = UDim2.new(0.5, -325, 0.3, -245)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(8, 35, 18)
-    mainFrame.BackgroundTransparency = 0.05
+    mainFrame.Size = UDim2.new(0, 680, 0, 520)
+    mainFrame.Position = UDim2.new(0.5, -340, 0.3, -260)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(10, 30, 18)
+    mainFrame.BackgroundTransparency = 0.03
     mainFrame.BorderSizePixel = 0
     mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
     
-    -- Gradient
-    local gradient = Instance.new("UIGradient")
-    gradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 55, 25)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 25, 12))
+    -- Main Gradient
+    local mainGradient = Instance.new("UIGradient")
+    mainGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 60, 30)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(12, 40, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 25, 14))
     })
-    gradient.Rotation = 90
-    gradient.Parent = mainFrame
+    mainGradient.Rotation = 135
+    mainGradient.Parent = mainFrame
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
+    corner.CornerRadius = UDim.new(0, 14)
     corner.Parent = mainFrame
     
-    -- Glow Border
+    -- Glow Border (Animated)
     local glowBorder = Instance.new("Frame")
     glowBorder.Size = UDim2.new(1, 0, 1, 0)
     glowBorder.BackgroundTransparency = 1
@@ -693,38 +686,94 @@ local function CreateGUI()
     glowBorder.Parent = mainFrame
     
     local glowCorner = Instance.new("UICorner")
-    glowCorner.CornerRadius = UDim.new(0, 12)
+    glowCorner.CornerRadius = UDim.new(0, 14)
     glowCorner.Parent = glowBorder
+    
+    -- Glow Animation
+    task.spawn(function()
+        local hue = 0.3
+        while screenGui and screenGui.Parent do
+            hue = (hue + 0.002) % 1
+            local color = Color3.fromHSV(hue, 0.8, 0.5)
+            glowBorder.BorderColor3 = color
+            task.wait(0.05)
+        end
+    end)
+    
+    -- Shadow
+    local shadow = Instance.new("ImageLabel")
+    shadow.Size = UDim2.new(1.06, 0, 1.06, 0)
+    shadow.Position = UDim2.new(-0.03, 0, -0.03, 0)
+    shadow.Image = "rbxassetid://1316045230"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.8
+    shadow.BackgroundTransparency = 1
+    shadow.ZIndex = 0
+    shadow.Parent = mainFrame
     
     -- Title Bar
     local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 36)
-    titleBar.BackgroundColor3 = Color3.fromRGB(15, 55, 25)
+    titleBar.Size = UDim2.new(1, 0, 0, 42)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+    titleBar.BackgroundTransparency = 0.2
     titleBar.BorderSizePixel = 0
     titleBar.Parent = mainFrame
     
     local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.CornerRadius = UDim.new(0, 14)
     titleCorner.Parent = titleBar
     
+    -- Title Gradient
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 80, 40)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 50, 25))
+    })
+    titleGradient.Rotation = 90
+    titleGradient.Parent = titleBar
+    
+    -- Icon
+    local iconLabel = Instance.new("TextLabel")
+    iconLabel.Size = UDim2.new(0, 40, 1, 0)
+    iconLabel.Position = UDim2.new(0, 10, 0, 0)
+    iconLabel.Text = "💎"
+    iconLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    iconLabel.TextSize = 22
+    iconLabel.BackgroundTransparency = 1
+    iconLabel.Font = Enum.Font.GothamBold
+    iconLabel.Parent = titleBar
+    
+    -- Title
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -160, 1, 0)
-    titleLabel.Position = UDim2.new(0, 12, 0, 0)
-    titleLabel.Text = "🌿 Auto Mail V8 (Auto Claim)"
-    titleLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
-    titleLabel.TextSize = 15
+    titleLabel.Size = UDim2.new(1, -200, 0, 20)
+    titleLabel.Position = UDim2.new(0, 55, 0, 4)
+    titleLabel.Text = "🌿 Auto Mail System"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 17
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.BackgroundTransparency = 1
     titleLabel.Font = Enum.Font.GothamBold
     titleLabel.Parent = titleBar
     
+    -- Subtitle
+    local subTitle = Instance.new("TextLabel")
+    subTitle.Size = UDim2.new(1, -200, 0, 14)
+    subTitle.Position = UDim2.new(0, 55, 0, 25)
+    subTitle.Text = "✨ ส่งของ • รับเมล • Auto Claim"
+    subTitle.TextColor3 = Color3.fromRGB(150, 255, 150)
+    subTitle.TextSize = 10
+    subTitle.TextXAlignment = Enum.TextXAlignment.Left
+    subTitle.BackgroundTransparency = 1
+    subTitle.Font = Enum.Font.Gotham
+    subTitle.Parent = titleBar
+    
     -- Mail Badge
     mailBadge = Instance.new("TextLabel")
-    mailBadge.Size = UDim2.new(0, 50, 1, 0)
-    mailBadge.Position = UDim2.new(1, -100, 0, 0)
+    mailBadge.Size = UDim2.new(0, 55, 1, 0)
+    mailBadge.Position = UDim2.new(1, -120, 0, 0)
     mailBadge.Text = "📭"
     mailBadge.TextColor3 = Color3.fromRGB(150, 150, 200)
-    mailBadge.TextSize = 14
+    mailBadge.TextSize = 16
     mailBadge.BackgroundTransparency = 1
     mailBadge.Font = Enum.Font.GothamBold
     mailBadge.TextXAlignment = Enum.TextXAlignment.Right
@@ -732,19 +781,19 @@ local function CreateGUI()
     
     -- Close Button
     local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 28, 0, 28)
-    closeBtn.Position = UDim2.new(1, -36, 0, 4)
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -38, 0, 6)
     closeBtn.Text = "✕"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.TextSize = 14
+    closeBtn.TextSize = 16
     closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    closeBtn.BackgroundTransparency = 0.5
+    closeBtn.BackgroundTransparency = 0.4
     closeBtn.BorderSizePixel = 0
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.Parent = titleBar
     
     local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.CornerRadius = UDim.new(0, 8)
     closeCorner.Parent = closeBtn
     
     closeBtn.MouseButton1Click:Connect(function()
@@ -789,36 +838,49 @@ local function CreateGUI()
         end
     end)
     
+    -- Content Container
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Size = UDim2.new(1, -16, 1, -52)
+    contentContainer.Position = UDim2.new(0, 8, 0, 48)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.Parent = mainFrame
+    
     -- Left Panel
     local leftPanel = Instance.new("Frame")
-    leftPanel.Size = UDim2.new(0, 130, 1, -42)
-    leftPanel.Position = UDim2.new(0, 6, 0, 40)
+    leftPanel.Size = UDim2.new(0, 135, 1, 0)
     leftPanel.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    leftPanel.BackgroundTransparency = 0.3
+    leftPanel.BackgroundTransparency = 0.4
     leftPanel.BorderSizePixel = 0
-    leftPanel.Parent = mainFrame
+    leftPanel.Parent = contentContainer
     
     local leftCorner = Instance.new("UICorner")
     leftCorner.CornerRadius = UDim.new(0, 8)
     leftCorner.Parent = leftPanel
     
-    local leftTitle = Instance.new("TextLabel")
-    leftTitle.Size = UDim2.new(1, 0, 0, 26)
-    leftTitle.Text = "📂 หมวดหมู่"
-    leftTitle.TextColor3 = Color3.fromRGB(120, 255, 150)
-    leftTitle.TextSize = 11
-    leftTitle.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-    leftTitle.BorderSizePixel = 0
-    leftTitle.Font = Enum.Font.GothamBold
-    leftTitle.Parent = leftPanel
+    -- Left Panel Header
+    local leftHeader = Instance.new("Frame")
+    leftHeader.Size = UDim2.new(1, 0, 0, 28)
+    leftHeader.BackgroundColor3 = Color3.fromRGB(20, 55, 28)
+    leftHeader.BackgroundTransparency = 0.2
+    leftHeader.BorderSizePixel = 0
+    leftHeader.Parent = leftPanel
     
-    local leftTitleCorner = Instance.new("UICorner")
-    leftTitleCorner.CornerRadius = UDim.new(0, 8)
-    leftTitleCorner.Parent = leftTitle
+    local leftHeaderCorner = Instance.new("UICorner")
+    leftHeaderCorner.CornerRadius = UDim.new(0, 8)
+    leftHeaderCorner.Parent = leftHeader
+    
+    local leftTitle = Instance.new("TextLabel")
+    leftTitle.Size = UDim2.new(1, 0, 1, 0)
+    leftTitle.Text = "📂 หมวดหมู่"
+    leftTitle.TextColor3 = Color3.fromRGB(150, 255, 150)
+    leftTitle.TextSize = 11
+    leftTitle.BackgroundTransparency = 1
+    leftTitle.Font = Enum.Font.GothamBold
+    leftTitle.Parent = leftHeader
     
     categoryList = Instance.new("ScrollingFrame")
-    categoryList.Size = UDim2.new(1, -4, 1, -32)
-    categoryList.Position = UDim2.new(0, 2, 0, 30)
+    categoryList.Size = UDim2.new(1, -4, 1, -34)
+    categoryList.Position = UDim2.new(0, 2, 0, 32)
     categoryList.BackgroundTransparency = 1
     categoryList.CanvasSize = UDim2.new(0, 0, 0, 0)
     categoryList.ScrollBarThickness = 2
@@ -831,12 +893,12 @@ local function CreateGUI()
     
     -- Right Panel
     local rightPanel = Instance.new("Frame")
-    rightPanel.Size = UDim2.new(1, -146, 1, -42)
-    rightPanel.Position = UDim2.new(0, 140, 0, 40)
+    rightPanel.Size = UDim2.new(1, -151, 1, 0)
+    rightPanel.Position = UDim2.new(0, 145, 0, 0)
     rightPanel.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    rightPanel.BackgroundTransparency = 0.3
+    rightPanel.BackgroundTransparency = 0.4
     rightPanel.BorderSizePixel = 0
-    rightPanel.Parent = mainFrame
+    rightPanel.Parent = contentContainer
     
     local rightCorner = Instance.new("UICorner")
     rightCorner.CornerRadius = UDim.new(0, 8)
@@ -844,9 +906,10 @@ local function CreateGUI()
     
     -- Recipient Section
     local recipientFrame = Instance.new("Frame")
-    recipientFrame.Size = UDim2.new(1, -8, 0, 52)
+    recipientFrame.Size = UDim2.new(1, -8, 0, 56)
     recipientFrame.Position = UDim2.new(0, 4, 0, 4)
     recipientFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+    recipientFrame.BackgroundTransparency = 0.3
     recipientFrame.BorderSizePixel = 0
     recipientFrame.Parent = rightPanel
     
@@ -854,49 +917,53 @@ local function CreateGUI()
     recCorner.CornerRadius = UDim.new(0, 6)
     recCorner.Parent = recipientFrame
     
+    -- Recipient Label
     local recLabel = Instance.new("TextLabel")
-    recLabel.Size = UDim2.new(0, 55, 0, 14)
-    recLabel.Position = UDim2.new(0, 6, 0, 1)
-    recLabel.Text = "👤 ผู้รับ:"
+    recLabel.Size = UDim2.new(0, 65, 0, 16)
+    recLabel.Position = UDim2.new(0, 6, 0, 2)
+    recLabel.Text = "👤 ผู้รับ"
     recLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-    recLabel.TextSize = 10
+    recLabel.TextSize = 11
     recLabel.BackgroundTransparency = 1
     recLabel.Font = Enum.Font.GothamBold
     recLabel.Parent = recipientFrame
     
+    -- Search Box
     searchBox = Instance.new("TextBox")
-    searchBox.Size = UDim2.new(1, -80, 0, 20)
-    searchBox.Position = UDim2.new(0, 4, 0, 17)
+    searchBox.Size = UDim2.new(1, -10, 0, 24)
+    searchBox.Position = UDim2.new(0, 5, 0, 20)
     searchBox.Text = ""
     searchBox.PlaceholderText = "🔍 ค้นหาผู้เล่น... (Enter = ทั่วโลก)"
     searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    searchBox.PlaceholderColor3 = Color3.fromRGB(120, 200, 140)
-    searchBox.TextSize = 11
+    searchBox.PlaceholderColor3 = Color3.fromRGB(150, 200, 160)
+    searchBox.TextSize = 12
     searchBox.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
+    searchBox.BackgroundTransparency = 0.3
     searchBox.BorderSizePixel = 0
     searchBox.ClearTextOnFocus = true
     searchBox.Font = Enum.Font.Gotham
     searchBox.Parent = recipientFrame
     
     local searchCorner = Instance.new("UICorner")
-    searchCorner.CornerRadius = UDim.new(0, 4)
+    searchCorner.CornerRadius = UDim.new(0, 6)
     searchCorner.Parent = searchBox
     
-    -- Selected Player
+    -- Selected Player Display
     selectedDisplay = Instance.new("Frame")
-    selectedDisplay.Size = UDim2.new(1, -8, 0, 28)
-    selectedDisplay.Position = UDim2.new(0, 4, 0, 39)
-    selectedDisplay.BackgroundColor3 = Color3.fromRGB(18, 52, 28)
+    selectedDisplay.Size = UDim2.new(1, -8, 0, 30)
+    selectedDisplay.Position = UDim2.new(0, 4, 0, 46)
+    selectedDisplay.BackgroundColor3 = Color3.fromRGB(18, 55, 28)
+    selectedDisplay.BackgroundTransparency = 0.2
     selectedDisplay.BorderSizePixel = 0
     selectedDisplay.Visible = false
     selectedDisplay.Parent = recipientFrame
     
     local selectedCorner = Instance.new("UICorner")
-    selectedCorner.CornerRadius = UDim.new(0, 4)
+    selectedCorner.CornerRadius = UDim.new(0, 6)
     selectedCorner.Parent = selectedDisplay
     
     avatarImage = Instance.new("ImageLabel")
-    avatarImage.Size = UDim2.new(0, 20, 0, 20)
+    avatarImage.Size = UDim2.new(0, 22, 0, 22)
     avatarImage.Position = UDim2.new(0, 4, 0, 4)
     avatarImage.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
     avatarImage.BackgroundTransparency = 0.5
@@ -904,53 +971,54 @@ local function CreateGUI()
     avatarImage.Parent = selectedDisplay
     
     local avatarCorner = Instance.new("UICorner")
-    avatarCorner.CornerRadius = UDim.new(0, 10)
+    avatarCorner.CornerRadius = UDim.new(0, 11)
     avatarCorner.Parent = avatarImage
     
     selectedName = Instance.new("TextLabel")
-    selectedName.Size = UDim2.new(1, -60, 0, 13)
-    selectedName.Position = UDim2.new(0, 28, 0, 1)
+    selectedName.Size = UDim2.new(1, -70, 0, 14)
+    selectedName.Position = UDim2.new(0, 32, 0, 2)
     selectedName.Text = ""
     selectedName.TextColor3 = Color3.fromRGB(255, 255, 255)
-    selectedName.TextSize = 10
+    selectedName.TextSize = 11
     selectedName.TextXAlignment = Enum.TextXAlignment.Left
     selectedName.BackgroundTransparency = 1
     selectedName.Font = Enum.Font.GothamBold
     selectedName.Parent = selectedDisplay
     
     selectedDisplayName = Instance.new("TextLabel")
-    selectedDisplayName.Size = UDim2.new(1, -60, 0, 10)
-    selectedDisplayName.Position = UDim2.new(0, 28, 0, 15)
+    selectedDisplayName.Size = UDim2.new(1, -70, 0, 12)
+    selectedDisplayName.Position = UDim2.new(0, 32, 0, 16)
     selectedDisplayName.Text = ""
     selectedDisplayName.TextColor3 = Color3.fromRGB(150, 220, 170)
-    selectedDisplayName.TextSize = 8
+    selectedDisplayName.TextSize = 9
     selectedDisplayName.TextXAlignment = Enum.TextXAlignment.Left
     selectedDisplayName.BackgroundTransparency = 1
     selectedDisplayName.Font = Enum.Font.Gotham
     selectedDisplayName.Parent = selectedDisplay
 
     globalBadge = Instance.new("TextLabel")
-    globalBadge.Size = UDim2.new(0, 42, 0, 12)
-    globalBadge.Position = UDim2.new(1, -66, 0, 8)
+    globalBadge.Size = UDim2.new(0, 48, 0, 14)
+    globalBadge.Position = UDim2.new(1, -70, 0, 8)
     globalBadge.Text = "🌐 GLOBAL"
     globalBadge.TextColor3 = Color3.fromRGB(255, 220, 120)
-    globalBadge.TextSize = 7
+    globalBadge.TextSize = 8
     globalBadge.BackgroundColor3 = Color3.fromRGB(60, 45, 10)
+    globalBadge.BackgroundTransparency = 0.3
     globalBadge.BorderSizePixel = 0
     globalBadge.Font = Enum.Font.GothamBold
     globalBadge.Visible = false
     globalBadge.Parent = selectedDisplay
 
     local globalBadgeCorner = Instance.new("UICorner")
-    globalBadgeCorner.CornerRadius = UDim.new(0, 3)
+    globalBadgeCorner.CornerRadius = UDim.new(0, 4)
     globalBadgeCorner.Parent = globalBadge
     
-    local clearBtn = Instance.new("TextButton")
-    clearBtn.Size = UDim2.new(0, 18, 0, 18)
-    clearBtn.Position = UDim2.new(1, -22, 0, 5)
+    clearBtn = Instance.new("TextButton")
+    clearBtn.Size = UDim2.new(0, 20, 0, 20)
+    clearBtn.Position = UDim2.new(1, -24, 0, 5)
     clearBtn.Text = "✕"
     clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    clearBtn.TextSize = 9
+    clearBtn.TextSize = 10
     clearBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     clearBtn.BackgroundTransparency = 0.5
     clearBtn.BorderSizePixel = 0
@@ -958,7 +1026,7 @@ local function CreateGUI()
     clearBtn.Parent = selectedDisplay
     
     local clearCorner = Instance.new("UICorner")
-    clearCorner.CornerRadius = UDim.new(0, 9)
+    clearCorner.CornerRadius = UDim.new(0, 10)
     clearCorner.Parent = clearBtn
     
     clearBtn.MouseButton1Click:Connect(function()
@@ -973,7 +1041,7 @@ local function CreateGUI()
     
     resultsContainer = Instance.new("Frame")
     resultsContainer.Size = UDim2.new(1, -8, 0, 0)
-    resultsContainer.Position = UDim2.new(0, 4, 0, 39)
+    resultsContainer.Position = UDim2.new(0, 4, 0, 46)
     resultsContainer.BackgroundTransparency = 1
     resultsContainer.ClipsDescendants = true
     resultsContainer.Parent = recipientFrame
@@ -982,11 +1050,12 @@ local function CreateGUI()
     resultsLayout.Padding = UDim.new(0, 2)
     resultsLayout.Parent = resultsContainer
     
-    -- Controls
+    -- Controls Section
     local controlsFrame = Instance.new("Frame")
-    controlsFrame.Size = UDim2.new(1, -8, 0, 26)
-    controlsFrame.Position = UDim2.new(0, 4, 0, 60)
+    controlsFrame.Size = UDim2.new(1, -8, 0, 30)
+    controlsFrame.Position = UDim2.new(0, 4, 0, 64)
     controlsFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+    controlsFrame.BackgroundTransparency = 0.3
     controlsFrame.BorderSizePixel = 0
     controlsFrame.Parent = rightPanel
     
@@ -996,21 +1065,22 @@ local function CreateGUI()
     
     local qtyLabel = Instance.new("TextLabel")
     qtyLabel.Size = UDim2.new(0, 25, 1, 0)
-    qtyLabel.Position = UDim2.new(0, 4, 0, 0)
+    qtyLabel.Position = UDim2.new(0, 6, 0, 0)
     qtyLabel.Text = "×"
-    qtyLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-    qtyLabel.TextSize = 12
+    qtyLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+    qtyLabel.TextSize = 14
     qtyLabel.BackgroundTransparency = 1
     qtyLabel.Font = Enum.Font.GothamBold
     qtyLabel.Parent = controlsFrame
     
     amountBox = Instance.new("TextBox")
-    amountBox.Size = UDim2.new(0, 28, 0, 18)
-    amountBox.Position = UDim2.new(0, 26, 0, 4)
+    amountBox.Size = UDim2.new(0, 35, 0, 20)
+    amountBox.Position = UDim2.new(0, 28, 0, 5)
     amountBox.Text = "1"
     amountBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    amountBox.TextSize = 11
+    amountBox.TextSize = 12
     amountBox.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
+    amountBox.BackgroundTransparency = 0.3
     amountBox.BorderSizePixel = 0
     amountBox.Font = Enum.Font.Gotham
     amountBox.Parent = controlsFrame
@@ -1022,19 +1092,27 @@ local function CreateGUI()
     local quickAmounts = {"1", "5", "10", "100", "500"}
     for i, val in ipairs(quickAmounts) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, val == "500" and 28 or 22, 0, 18)
-        btn.Position = UDim2.new(0, 58 + (i-1) * (val == "500" and 32 or 26), 0, 4)
+        btn.Size = UDim2.new(0, val == "500" and 30 or 24, 0, 20)
+        btn.Position = UDim2.new(0, 68 + (i-1) * (val == "500" and 34 or 28), 0, 5)
         btn.Text = val
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = val == "500" and 8 or 9
+        btn.TextSize = val == "500" and 9 or 10
         btn.BackgroundColor3 = val == "500" and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(18, 52, 28)
+        btn.BackgroundTransparency = 0.3
         btn.BorderSizePixel = 0
         btn.Font = Enum.Font.GothamBold
         btn.Parent = controlsFrame
         
         local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 3)
+        btnCorner.CornerRadius = UDim.new(0, 4)
         btnCorner.Parent = btn
+        
+        btn.MouseEnter:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+        end)
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+        end)
         
         btn.MouseButton1Click:Connect(function()
             amountBox.Text = val
@@ -1045,14 +1123,15 @@ local function CreateGUI()
     end
     
     noteBox = Instance.new("TextBox")
-    noteBox.Size = UDim2.new(0, 100, 0, 18)
-    noteBox.Position = UDim2.new(1, -104, 0, 4)
+    noteBox.Size = UDim2.new(0, 120, 0, 20)
+    noteBox.Position = UDim2.new(1, -126, 0, 5)
     noteBox.Text = ""
     noteBox.PlaceholderText = "✏️ ข้อความ..."
     noteBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    noteBox.PlaceholderColor3 = Color3.fromRGB(120, 200, 140)
+    noteBox.PlaceholderColor3 = Color3.fromRGB(150, 200, 160)
     noteBox.TextSize = 10
     noteBox.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
+    noteBox.BackgroundTransparency = 0.3
     noteBox.BorderSizePixel = 0
     noteBox.Font = Enum.Font.Gotham
     noteBox.Parent = controlsFrame
@@ -1061,11 +1140,12 @@ local function CreateGUI()
     noteCorner.CornerRadius = UDim.new(0, 4)
     noteCorner.Parent = noteBox
     
-    -- 🔥 Item Search Box
+    -- Item Search
     local itemSearchFrame = Instance.new("Frame")
-    itemSearchFrame.Size = UDim2.new(1, -8, 0, 22)
-    itemSearchFrame.Position = UDim2.new(0, 4, 0, 90)
+    itemSearchFrame.Size = UDim2.new(1, -8, 0, 24)
+    itemSearchFrame.Position = UDim2.new(0, 4, 0, 98)
     itemSearchFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+    itemSearchFrame.BackgroundTransparency = 0.3
     itemSearchFrame.BorderSizePixel = 0
     itemSearchFrame.Parent = rightPanel
     
@@ -1075,21 +1155,21 @@ local function CreateGUI()
     
     local itemSearchLabel = Instance.new("TextLabel")
     itemSearchLabel.Size = UDim2.new(0, 25, 1, 0)
-    itemSearchLabel.Position = UDim2.new(0, 4, 0, 0)
+    itemSearchLabel.Position = UDim2.new(0, 6, 0, 0)
     itemSearchLabel.Text = "🔍"
     itemSearchLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-    itemSearchLabel.TextSize = 12
+    itemSearchLabel.TextSize = 13
     itemSearchLabel.BackgroundTransparency = 1
     itemSearchLabel.Font = Enum.Font.Gotham
     itemSearchLabel.Parent = itemSearchFrame
     
     itemSearchBox = Instance.new("TextBox")
-    itemSearchBox.Size = UDim2.new(1, -32, 1, -4)
-    itemSearchBox.Position = UDim2.new(0, 28, 0, 2)
+    itemSearchBox.Size = UDim2.new(1, -40, 1, -4)
+    itemSearchBox.Position = UDim2.new(0, 32, 0, 2)
     itemSearchBox.Text = ""
     itemSearchBox.PlaceholderText = "🔍 ค้นหาไอเท็ม..."
     itemSearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    itemSearchBox.PlaceholderColor3 = Color3.fromRGB(120, 200, 140)
+    itemSearchBox.PlaceholderColor3 = Color3.fromRGB(150, 200, 160)
     itemSearchBox.TextSize = 10
     itemSearchBox.BackgroundTransparency = 1
     itemSearchBox.BorderSizePixel = 0
@@ -1097,8 +1177,8 @@ local function CreateGUI()
     itemSearchBox.Font = Enum.Font.Gotham
     itemSearchBox.Parent = itemSearchFrame
     
-    local clearSearchBtn = Instance.new("TextButton")
-    clearSearchBtn.Size = UDim2.new(0, 20, 0, 16)
+    clearSearchBtn = Instance.new("TextButton")
+    clearSearchBtn.Size = UDim2.new(0, 20, 0, 18)
     clearSearchBtn.Position = UDim2.new(1, -22, 0, 3)
     clearSearchBtn.Text = "✕"
     clearSearchBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1111,7 +1191,7 @@ local function CreateGUI()
     clearSearchBtn.Parent = itemSearchFrame
     
     local clearSearchCorner = Instance.new("UICorner")
-    clearSearchCorner.CornerRadius = UDim.new(0, 9)
+    clearSearchCorner.CornerRadius = UDim.new(0, 10)
     clearSearchCorner.Parent = clearSearchBtn
     
     clearSearchBtn.MouseButton1Click:Connect(function()
@@ -1124,11 +1204,14 @@ local function CreateGUI()
         clearSearchBtn.MouseButton1Click:Fire()
     end)
     
-    -- Stats
+    -- ============================================
+    -- 🔥 Stats & Actions (ปรับขนาดไม่ให้เบียด)
+    -- ============================================
     local statsFrame = Instance.new("Frame")
-    statsFrame.Size = UDim2.new(1, -8, 0, 24)
-    statsFrame.Position = UDim2.new(0, 4, 0, 116)
+    statsFrame.Size = UDim2.new(1, -8, 0, 28)
+    statsFrame.Position = UDim2.new(0, 4, 0, 126)
     statsFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+    statsFrame.BackgroundTransparency = 0.3
     statsFrame.BorderSizePixel = 0
     statsFrame.Parent = rightPanel
     
@@ -1136,45 +1219,47 @@ local function CreateGUI()
     statsCorner.CornerRadius = UDim.new(0, 6)
     statsCorner.Parent = statsFrame
     
+    -- 📊 ทั้งหมด (เล็กลง)
     totalLabel = Instance.new("TextLabel")
-    totalLabel.Size = UDim2.new(0, 60, 1, 0)
+    totalLabel.Size = UDim2.new(0, 50, 1, 0)
     totalLabel.Position = UDim2.new(0, 4, 0, 0)
-    totalLabel.Text = "📊 ทั้งหมด: 0"
+    totalLabel.Text = "📊 0"
     totalLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
     totalLabel.TextSize = 9
     totalLabel.TextXAlignment = Enum.TextXAlignment.Left
     totalLabel.BackgroundTransparency = 1
-    totalLabel.Font = Enum.Font.Gotham
+    totalLabel.Font = Enum.Font.GothamBold
     totalLabel.Parent = statsFrame
     
+    -- ✅ เลือก (เล็กลง)
     selectedLabel = Instance.new("TextLabel")
-    selectedLabel.Size = UDim2.new(0, 60, 1, 0)
-    selectedLabel.Position = UDim2.new(0, 68, 0, 0)
-    selectedLabel.Text = "✅ เลือก: 0"
+    selectedLabel.Size = UDim2.new(0, 45, 1, 0)
+    selectedLabel.Position = UDim2.new(0, 56, 0, 0)
+    selectedLabel.Text = "✅ 0"
     selectedLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     selectedLabel.TextSize = 9
     selectedLabel.TextXAlignment = Enum.TextXAlignment.Left
     selectedLabel.BackgroundTransparency = 1
-    selectedLabel.Font = Enum.Font.Gotham
+    selectedLabel.Font = Enum.Font.GothamBold
     selectedLabel.Parent = statsFrame
     
-    -- Batch Info Label
+    -- Batch Info (เล็กลง)
     batchInfoLabel = Instance.new("TextLabel")
-    batchInfoLabel.Size = UDim2.new(0, 70, 1, 0)
-    batchInfoLabel.Position = UDim2.new(0, 132, 0, 0)
+    batchInfoLabel.Size = UDim2.new(0, 55, 1, 0)
+    batchInfoLabel.Position = UDim2.new(0, 104, 0, 0)
     batchInfoLabel.Text = ""
-    batchInfoLabel.TextColor3 = Color3.fromRGB(200, 200, 100)
+    batchInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
     batchInfoLabel.TextSize = 8
     batchInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
     batchInfoLabel.BackgroundTransparency = 1
     batchInfoLabel.Font = Enum.Font.Gotham
     batchInfoLabel.Parent = statsFrame
     
-    -- 🔥 Auto Claim Toggle (อยู่แถว stats)
+    -- 🔥 Auto Claim Toggle (เล็กลง)
     autoClaimBtn = Instance.new("TextButton")
-    autoClaimBtn.Size = UDim2.new(0, 90, 0, 18)
-    autoClaimBtn.Position = UDim2.new(1, -190, 0, 3)
-    autoClaimBtn.Text = "▶️ Auto Claim: OFF"
+    autoClaimBtn.Size = UDim2.new(0, 75, 0, 18)
+    autoClaimBtn.Position = UDim2.new(1, -180, 0, 5)
+    autoClaimBtn.Text = "▶️ OFF"
     autoClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     autoClaimBtn.TextSize = 8
     autoClaimBtn.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
@@ -1201,17 +1286,18 @@ local function CreateGUI()
         autoClaimBtn.MouseButton1Click:Fire()
     end)
     
-    -- Action Buttons
+    -- Action Buttons (เล็กลง + ไม่เบียด)
     local actionBtns = {"✅ ทั้งหมด", "🗑️ ล้าง", "🔄 รีเฟรช"}
     local actionColors = {Color3.fromRGB(0, 160, 70), Color3.fromRGB(180, 45, 45), Color3.fromRGB(40, 120, 60)}
     for i, text in ipairs(actionBtns) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 42, 0, 16)
-        btn.Position = UDim2.new(1, -(12 + (3-i) * 46), 0, 4)
+        btn.Size = UDim2.new(0, 38, 0, 16)
+        btn.Position = UDim2.new(1, -(8 + (3-i) * 42), 0, 6)
         btn.Text = text
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
         btn.TextSize = 7
         btn.BackgroundColor3 = actionColors[i]
+        btn.BackgroundTransparency = 0.3
         btn.BorderSizePixel = 0
         btn.Font = Enum.Font.GothamBold
         btn.Parent = statsFrame
@@ -1220,6 +1306,13 @@ local function CreateGUI()
         btnCorner.CornerRadius = UDim.new(0, 3)
         btnCorner.Parent = btn
         
+        btn.MouseEnter:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+        end)
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+        end)
+        
         if i == 1 then
             btn.MouseButton1Click:Connect(function()
                 SelectedItems = {}
@@ -1227,7 +1320,7 @@ local function CreateGUI()
                     table.insert(SelectedItems, item)
                 end
                 if selectedLabel then
-                    selectedLabel.Text = "✅ เลือก: " .. #SelectedItems
+                    selectedLabel.Text = "✅ " .. #SelectedItems
                 end
                 UpdateBatchInfo()
                 BuildCategoryList()
@@ -1237,7 +1330,7 @@ local function CreateGUI()
             btn.MouseButton1Click:Connect(function()
                 SelectedItems = {}
                 if selectedLabel then
-                    selectedLabel.Text = "✅ เลือก: 0"
+                    selectedLabel.Text = "✅ 0"
                 end
                 UpdateBatchInfo()
                 BuildCategoryList()
@@ -1257,13 +1350,13 @@ local function CreateGUI()
     
     -- Item List
     itemList = Instance.new("ScrollingFrame")
-    itemList.Size = UDim2.new(1, -8, 1, -164)
-    itemList.Position = UDim2.new(0, 4, 0, 144)
+    itemList.Size = UDim2.new(1, -8, 1, -175)
+    itemList.Position = UDim2.new(0, 4, 0, 158)
     itemList.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    itemList.BackgroundTransparency = 0.3
+    itemList.BackgroundTransparency = 0.4
     itemList.BorderSizePixel = 0
     itemList.CanvasSize = UDim2.new(0, 0, 0, 0)
-    itemList.ScrollBarThickness = 3
+    itemList.ScrollBarThickness = 4
     itemList.ScrollBarImageColor3 = Color3.fromRGB(60, 200, 80)
     itemList.Parent = rightPanel
     
@@ -1277,9 +1370,10 @@ local function CreateGUI()
     
     -- Bottom
     local bottomFrame = Instance.new("Frame")
-    bottomFrame.Size = UDim2.new(1, -8, 0, 36)
-    bottomFrame.Position = UDim2.new(0, 4, 1, -40)
+    bottomFrame.Size = UDim2.new(1, -8, 0, 40)
+    bottomFrame.Position = UDim2.new(0, 4, 1, -44)
     bottomFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+    bottomFrame.BackgroundTransparency = 0.3
     bottomFrame.BorderSizePixel = 0
     bottomFrame.Parent = rightPanel
     
@@ -1288,24 +1382,25 @@ local function CreateGUI()
     bottomCorner.Parent = bottomFrame
     
     statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0, 140, 1, 0)
-    statusLabel.Position = UDim2.new(0, 6, 0, 0)
+    statusLabel.Size = UDim2.new(0, 150, 1, 0)
+    statusLabel.Position = UDim2.new(0, 8, 0, 0)
     statusLabel.Text = "✅ พร้อมใช้งาน"
     statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
-    statusLabel.TextSize = 9
+    statusLabel.TextSize = 10
     statusLabel.BackgroundTransparency = 1
     statusLabel.Font = Enum.Font.Gotham
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     statusLabel.Parent = bottomFrame
     
+    -- Claim Buttons
     claimSingleBtn = Instance.new("TextButton")
-    claimSingleBtn.Size = UDim2.new(0, 40, 0, 24)
-    claimSingleBtn.Position = UDim2.new(1, -280, 0, 6)
+    claimSingleBtn.Size = UDim2.new(0, 38, 0, 24)
+    claimSingleBtn.Position = UDim2.new(1, -295, 0, 8)
     claimSingleBtn.Text = "📬 1"
     claimSingleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     claimSingleBtn.TextSize = 9
     claimSingleBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 100)
-    claimSingleBtn.BackgroundTransparency = 0.3
+    claimSingleBtn.BackgroundTransparency = 0.2
     claimSingleBtn.BorderSizePixel = 0
     claimSingleBtn.Font = Enum.Font.GothamBold
     claimSingleBtn.Parent = bottomFrame
@@ -1315,10 +1410,10 @@ local function CreateGUI()
     claimSingleCorner.Parent = claimSingleBtn
     
     claimSingleBtn.MouseEnter:Connect(function()
-        TweenService:Create(claimSingleBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+        TweenService:Create(claimSingleBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.05}):Play()
     end)
     claimSingleBtn.MouseLeave:Connect(function()
-        TweenService:Create(claimSingleBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+        TweenService:Create(claimSingleBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
     end)
     
     claimSingleBtn.MouseButton1Click:Connect(function()
@@ -1330,12 +1425,12 @@ local function CreateGUI()
     
     claimAllBtn = Instance.new("TextButton")
     claimAllBtn.Size = UDim2.new(0, 60, 0, 24)
-    claimAllBtn.Position = UDim2.new(1, -216, 0, 6)
+    claimAllBtn.Position = UDim2.new(1, -228, 0, 8)
     claimAllBtn.Text = "📬 รับทั้งหมด"
     claimAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     claimAllBtn.TextSize = 9
     claimAllBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 50)
-    claimAllBtn.BackgroundTransparency = 0.3
+    claimAllBtn.BackgroundTransparency = 0.2
     claimAllBtn.BorderSizePixel = 0
     claimAllBtn.Font = Enum.Font.GothamBold
     claimAllBtn.Parent = bottomFrame
@@ -1345,10 +1440,10 @@ local function CreateGUI()
     claimAllCorner.Parent = claimAllBtn
     
     claimAllBtn.MouseEnter:Connect(function()
-        TweenService:Create(claimAllBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+        TweenService:Create(claimAllBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.05}):Play()
     end)
     claimAllBtn.MouseLeave:Connect(function()
-        TweenService:Create(claimAllBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+        TweenService:Create(claimAllBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
     end)
     
     claimAllBtn.MouseButton1Click:Connect(function()
@@ -1359,12 +1454,13 @@ local function CreateGUI()
     end)
     
     sendBtn = Instance.new("TextButton")
-    sendBtn.Size = UDim2.new(0, 100, 0, 26)
-    sendBtn.Position = UDim2.new(1, -108, 0, 5)
+    sendBtn.Size = UDim2.new(0, 110, 0, 28)
+    sendBtn.Position = UDim2.new(1, -118, 0, 6)
     sendBtn.Text = "🚀 ส่ง"
     sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sendBtn.TextSize = 12
-    sendBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+    sendBtn.TextSize = 13
+    sendBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
+    sendBtn.BackgroundTransparency = 0.1
     sendBtn.BorderSizePixel = 0
     sendBtn.Font = Enum.Font.GothamBold
     sendBtn.Parent = bottomFrame
@@ -1372,6 +1468,22 @@ local function CreateGUI()
     local sendCorner = Instance.new("UICorner")
     sendCorner.CornerRadius = UDim.new(0, 4)
     sendCorner.Parent = sendBtn
+    
+    -- Send Button Gradient
+    local sendGradient = Instance.new("UIGradient")
+    sendGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 200, 80)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 160, 60))
+    })
+    sendGradient.Rotation = 90
+    sendGradient.Parent = sendBtn
+    
+    sendBtn.MouseEnter:Connect(function()
+        TweenService:Create(sendBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.02}):Play()
+    end)
+    sendBtn.MouseLeave:Connect(function()
+        TweenService:Create(sendBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+    end)
     
     -- ================================
     -- ฟังก์ชันหลัก
@@ -1399,12 +1511,13 @@ local function CreateGUI()
             return
         end
         
-        resultsContainer.Size = UDim2.new(1, 0, 0, #results * 26 + 4)
+        resultsContainer.Size = UDim2.new(1, 0, 0, #results * 28 + 4)
         
         for _, result in ipairs(results) do
             local row = Instance.new("TextButton")
-            row.Size = UDim2.new(1, 0, 0, 24)
+            row.Size = UDim2.new(1, 0, 0, 26)
             row.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
+            row.BackgroundTransparency = 0.3
             row.BorderSizePixel = 0
             row.Parent = resultsContainer
             
@@ -1412,8 +1525,15 @@ local function CreateGUI()
             rowCorner.CornerRadius = UDim.new(0, 4)
             rowCorner.Parent = row
             
+            row.MouseEnter:Connect(function()
+                TweenService:Create(row, TweenInfo.new(0.1), {BackgroundTransparency = 0.1}):Play()
+            end)
+            row.MouseLeave:Connect(function()
+                TweenService:Create(row, TweenInfo.new(0.1), {BackgroundTransparency = 0.3}):Play()
+            end)
+            
             local avatar = Instance.new("ImageLabel")
-            avatar.Size = UDim2.new(0, 18, 0, 18)
+            avatar.Size = UDim2.new(0, 20, 0, 20)
             avatar.Position = UDim2.new(0, 3, 0, 3)
             avatar.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
             avatar.BackgroundTransparency = 0.5
@@ -1421,7 +1541,7 @@ local function CreateGUI()
             avatar.Parent = row
             
             local avatarCorner2 = Instance.new("UICorner")
-            avatarCorner2.CornerRadius = UDim.new(0, 9)
+            avatarCorner2.CornerRadius = UDim.new(0, 10)
             avatarCorner2.Parent = avatar
             
             task.spawn(function()
@@ -1430,22 +1550,22 @@ local function CreateGUI()
             end)
             
             local nameText = Instance.new("TextLabel")
-            nameText.Size = UDim2.new(1, -40, 0, 12)
-            nameText.Position = UDim2.new(0, 26, 0, 1)
+            nameText.Size = UDim2.new(1, -45, 0, 13)
+            nameText.Position = UDim2.new(0, 28, 0, 1)
             nameText.Text = result.DisplayName
             nameText.TextColor3 = Color3.fromRGB(255, 255, 255)
-            nameText.TextSize = 10
+            nameText.TextSize = 11
             nameText.TextXAlignment = Enum.TextXAlignment.Left
             nameText.BackgroundTransparency = 1
             nameText.Font = Enum.Font.GothamBold
             nameText.Parent = row
             
             local usernameText = Instance.new("TextLabel")
-            usernameText.Size = UDim2.new(1, -40, 0, 10)
-            usernameText.Position = UDim2.new(0, 26, 0, 12)
+            usernameText.Size = UDim2.new(1, -45, 0, 10)
+            usernameText.Position = UDim2.new(0, 28, 0, 14)
             usernameText.Text = "@" .. result.Name
             usernameText.TextColor3 = Color3.fromRGB(150, 220, 170)
-            usernameText.TextSize = 7
+            usernameText.TextSize = 8
             usernameText.TextXAlignment = Enum.TextXAlignment.Left
             usernameText.BackgroundTransparency = 1
             usernameText.Font = Enum.Font.Gotham
@@ -1541,7 +1661,7 @@ local function CreateGUI()
         end)
     end
     
-    -- 🔥 Item Search
+    -- Item Search
     if itemSearchBox then
         itemSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
             itemSearchText = itemSearchBox.Text or ""
@@ -1574,7 +1694,6 @@ local function CreateGUI()
         
         InventoryItems = GetMyInventory()
         
-        -- 🔥 กรองตามคำค้นหา
         local filteredItems = {}
         local searchLower = string.lower(itemSearchText)
         
@@ -1610,7 +1729,7 @@ local function CreateGUI()
             totalItems = totalItems + 1
         end
         if totalLabel then
-            totalLabel.Text = "📊 ทั้งหมด: " .. totalItems
+            totalLabel.Text = "📊 " .. totalItems
         end
         
         local leftHeight = 0
@@ -1619,7 +1738,7 @@ local function CreateGUI()
         if #sortedCategories == 0 then
             local emptyLabel = Instance.new("TextLabel")
             emptyLabel.Size = UDim2.new(1, 0, 0, 50)
-            emptyLabel.Text = "🔍 ไม่พบไอเท็มที่ค้นหา"
+            emptyLabel.Text = "🔍 ไม่พบไอเท็ม"
             emptyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
             emptyLabel.TextSize = 14
             emptyLabel.BackgroundTransparency = 1
@@ -1636,12 +1755,13 @@ local function CreateGUI()
             local isExpanded = expandedCategories[catName] or false
             
             local catBtn = Instance.new("TextButton")
-            catBtn.Size = UDim2.new(1, -2, 0, 26)
+            catBtn.Size = UDim2.new(1, -2, 0, 28)
             catBtn.Text = CATEGORY_ICONS[catName] .. " " .. catName .. " (" .. #items .. ")"
             catBtn.TextColor3 = CATEGORY_COLORS[catName] or Color3.fromRGB(150, 255, 150)
             catBtn.TextSize = 10
             catBtn.TextXAlignment = Enum.TextXAlignment.Left
-            catBtn.BackgroundColor3 = isExpanded and Color3.fromRGB(18, 52, 28) or Color3.fromRGB(10, 30, 16)
+            catBtn.BackgroundColor3 = isExpanded and Color3.fromRGB(18, 55, 28) or Color3.fromRGB(10, 30, 16)
+            catBtn.BackgroundTransparency = 0.3
             catBtn.BorderSizePixel = 0
             catBtn.Font = Enum.Font.Gotham
             catBtn.Parent = categoryList
@@ -1650,7 +1770,14 @@ local function CreateGUI()
             catCorner.CornerRadius = UDim.new(0, 4)
             catCorner.Parent = catBtn
             
-            leftHeight = leftHeight + 26 + 2
+            catBtn.MouseEnter:Connect(function()
+                TweenService:Create(catBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.1}):Play()
+            end)
+            catBtn.MouseLeave:Connect(function()
+                TweenService:Create(catBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.3}):Play()
+            end)
+            
+            leftHeight = leftHeight + 28 + 2
             
             catBtn.MouseButton1Click:Connect(function()
                 expandedCategories[catName] = not expandedCategories[catName]
@@ -1663,8 +1790,9 @@ local function CreateGUI()
             if isExpanded then
                 for _, item in ipairs(items) do
                     local row = Instance.new("Frame")
-                    row.Size = UDim2.new(1, -2, 0, 26)
+                    row.Size = UDim2.new(1, -2, 0, 28)
                     row.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+                    row.BackgroundTransparency = 0.3
                     row.BorderSizePixel = 0
                     row.Parent = itemList
                     
@@ -1673,12 +1801,13 @@ local function CreateGUI()
                     rowCorner.Parent = row
                     
                     local checkBtn = Instance.new("TextButton")
-                    checkBtn.Size = UDim2.new(0, 20, 0, 20)
-                    checkBtn.Position = UDim2.new(0, 2, 0, 3)
+                    checkBtn.Size = UDim2.new(0, 22, 0, 22)
+                    checkBtn.Position = UDim2.new(0, 3, 0, 3)
                     checkBtn.Text = "☐"
                     checkBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-                    checkBtn.TextSize = 11
+                    checkBtn.TextSize = 12
                     checkBtn.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
+                    checkBtn.BackgroundTransparency = 0.3
                     checkBtn.BorderSizePixel = 0
                     checkBtn.Parent = row
                     
@@ -1693,40 +1822,42 @@ local function CreateGUI()
                             isSelected = true
                             checkBtn.Text = "☑"
                             checkBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-                            row.BackgroundColor3 = Color3.fromRGB(18, 52, 28)
+                            row.BackgroundColor3 = Color3.fromRGB(18, 55, 28)
+                            row.BackgroundTransparency = 0.2
                             break
                         end
                     end
                     
                     local nameLabel = Instance.new("TextLabel")
-                    nameLabel.Size = UDim2.new(0, 120, 1, 0)
-                    nameLabel.Position = UDim2.new(0, 26, 0, 0)
+                    nameLabel.Size = UDim2.new(0, 130, 1, 0)
+                    nameLabel.Position = UDim2.new(0, 28, 0, 0)
                     nameLabel.Text = item.DisplayName
                     nameLabel.TextColor3 = Color3.fromRGB(220, 255, 220)
-                    nameLabel.TextSize = 10
+                    nameLabel.TextSize = 11
                     nameLabel.TextXAlignment = Enum.TextXAlignment.Left
                     nameLabel.BackgroundTransparency = 1
                     nameLabel.Font = Enum.Font.Gotham
                     nameLabel.Parent = row
                     
                     local amtLabel = Instance.new("TextLabel")
-                    amtLabel.Size = UDim2.new(0, 35, 1, 0)
-                    amtLabel.Position = UDim2.new(0, 150, 0, 0)
+                    amtLabel.Size = UDim2.new(0, 40, 1, 0)
+                    amtLabel.Position = UDim2.new(0, 162, 0, 0)
                     amtLabel.Text = "x" .. item.Count
                     amtLabel.TextColor3 = Color3.fromRGB(200, 200, 100)
-                    amtLabel.TextSize = 9
+                    amtLabel.TextSize = 10
                     amtLabel.TextXAlignment = Enum.TextXAlignment.Left
                     amtLabel.BackgroundTransparency = 1
                     amtLabel.Font = Enum.Font.Gotham
                     amtLabel.Parent = row
                     
                     local sendOneBtn = Instance.new("TextButton")
-                    sendOneBtn.Size = UDim2.new(0, 38, 0, 16)
-                    sendOneBtn.Position = UDim2.new(1, -42, 0, 5)
-                    sendOneBtn.Text = "ส่ง"
+                    sendOneBtn.Size = UDim2.new(0, 42, 0, 18)
+                    sendOneBtn.Position = UDim2.new(1, -46, 0, 5)
+                    sendOneBtn.Text = "ส่ง 1"
                     sendOneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                     sendOneBtn.TextSize = 8
-                    sendOneBtn.BackgroundColor3 = Color3.fromRGB(35, 130, 55)
+                    sendOneBtn.BackgroundColor3 = Color3.fromRGB(35, 140, 60)
+                    sendOneBtn.BackgroundTransparency = 0.2
                     sendOneBtn.BorderSizePixel = 0
                     sendOneBtn.Font = Enum.Font.GothamBold
                     sendOneBtn.Parent = row
@@ -1734,6 +1865,13 @@ local function CreateGUI()
                     local sendOneCorner = Instance.new("UICorner")
                     sendOneCorner.CornerRadius = UDim.new(0, 3)
                     sendOneCorner.Parent = sendOneBtn
+                    
+                    sendOneBtn.MouseEnter:Connect(function()
+                        TweenService:Create(sendOneBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.05}):Play()
+                    end)
+                    sendOneBtn.MouseLeave:Connect(function()
+                        TweenService:Create(sendOneBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
+                    end)
                     
                     sendOneBtn.MouseButton1Click:Connect(function()
                         if not selectedPlayer then
@@ -1767,12 +1905,14 @@ local function CreateGUI()
                         if isSelected then
                             checkBtn.Text = "☑"
                             checkBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-                            row.BackgroundColor3 = Color3.fromRGB(18, 52, 28)
+                            row.BackgroundColor3 = Color3.fromRGB(18, 55, 28)
+                            row.BackgroundTransparency = 0.2
                             table.insert(SelectedItems, item)
                         else
                             checkBtn.Text = "☐"
                             checkBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
                             row.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
+                            row.BackgroundTransparency = 0.3
                             for i, selected in ipairs(SelectedItems) do
                                 if selected == item then
                                     table.remove(SelectedItems, i)
@@ -1781,7 +1921,7 @@ local function CreateGUI()
                             end
                         end
                         if selectedLabel then
-                            selectedLabel.Text = "✅ เลือก: " .. #SelectedItems
+                            selectedLabel.Text = "✅ " .. #SelectedItems
                         end
                         UpdateBatchInfo()
                     end)
@@ -1789,7 +1929,7 @@ local function CreateGUI()
                         checkBtn.MouseButton1Click:Fire()
                     end)
                     
-                    rightHeight = rightHeight + 26 + 2
+                    rightHeight = rightHeight + 28 + 2
                 end
             end
         end
@@ -1798,7 +1938,7 @@ local function CreateGUI()
         itemList.CanvasSize = UDim2.new(0, 0, 0, rightHeight + 10)
         
         if selectedLabel then
-            selectedLabel.Text = "✅ เลือก: " .. #SelectedItems
+            selectedLabel.Text = "✅ " .. #SelectedItems
         end
         UpdateBatchInfo()
     end
@@ -1834,15 +1974,14 @@ local function CreateGUI()
             local sendAmount = amt
             
             if realCount <= 0 then
-                UpdateStatus(string.format("⚠️ ไม่มี %s ใน Inventory!", item.DisplayName), Color3.fromRGB(255, 200, 100))
+                UpdateStatus(string.format("⚠️ ไม่มี %s!", item.DisplayName), Color3.fromRGB(255, 200, 100))
                 failCount = failCount + 1
                 if i < #SelectedItems then
                     task.wait(0.15)
                 end
-                do end
             else
                 if sendAmount > realCount then
-                    UpdateStatus(string.format("⚠️ %s มี %d ชิ้น (ปรับจาก %d)", item.DisplayName, realCount, sendAmount), Color3.fromRGB(255, 200, 100))
+                    UpdateStatus(string.format("⚠️ %s มี %d ชิ้น", item.DisplayName, realCount), Color3.fromRGB(255, 200, 100))
                     sendAmount = realCount
                 end
                 
@@ -1861,13 +2000,13 @@ local function CreateGUI()
         
         if sendBtn then
             sendBtn.Text = "🚀 ส่ง"
-            sendBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+            sendBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
         end
-        UpdateStatus(string.format("✅ เสร็จ! สำเร็จ %d ล้มเหลว %d", successCount, failCount), Color3.fromRGB(150, 255, 150))
+        UpdateStatus(string.format("✅ สำเร็จ %d ล้มเหลว %d", successCount, failCount), Color3.fromRGB(150, 255, 150))
         
         SelectedItems = {}
         if selectedLabel then
-            selectedLabel.Text = "✅ เลือก: 0"
+            selectedLabel.Text = "✅ 0"
         end
         UpdateBatchInfo()
         BuildCategoryList()
@@ -1888,6 +2027,15 @@ local function CreateGUI()
     UpdateMailCount()
     UpdateStatus("✅ พร้อมใช้งาน!", Color3.fromRGB(150, 255, 150))
     
+    -- Animation on load
+    mainFrame.Position = UDim2.new(0.5, -340, 0.3, -280)
+    mainFrame.BackgroundTransparency = 1
+    
+    TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -340, 0.3, -260),
+        BackgroundTransparency = 0.03
+    }):Play()
+    
     -- Auto refresh ทุก 30 วินาที
     task.spawn(function()
         while screenGui and screenGui.Parent do
@@ -1896,11 +2044,7 @@ local function CreateGUI()
         end
     end)
     
-    print("✅ Auto Mail V8 (Auto Claim) พร้อมใช้งาน!")
-    print("📌 รับเมล: กด '📬 1' = รับทีละเมล, '📬 รับทั้งหมด' = รับทั้งหมด")
-    print("📌 Auto Claim: กดปุ่ม '▶️ Auto Claim: OFF' เพื่อเปิดใช้งาน")
-    print("📌 ระบบจะตัดจำนวนให้อัตโนมัติหากใส่เกินที่มี")
-    print("📌 ค้นหาไอเท็ม: พิมพ์ชื่อในช่องค้นหาด้านล่าง")
+    print("✅ Auto Mail V9.1 (Fixed Layout) พร้อมใช้งาน!")
 end
 
 -- ============================================
