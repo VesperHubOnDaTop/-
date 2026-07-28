@@ -137,6 +137,25 @@ local FRUIT_LIST = {
 }
 
 -- ============================================
+-- 🔥 รายชื่อเมล็ดพันธุ์ (ไม่ใช่ผลไม้)
+-- ============================================
+local SEED_ONLY = {
+    "Dragon's Breath",  -- เมล็ดพันธุ์ Dragon's Breath (ไม่ใช่ผล)
+    "Venus Fly Trap",   -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Venom Spitter",    -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Fire Fern",        -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Sun Bloom",        -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Hypno Bloom",      -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Mega",             -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Moon Bloom",       -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Rainbow",          -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Tulip",            -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Pomegranate",      -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Strawberry",       -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+    "Bamboo",           -- เมล็ดพันธุ์ (ไม่ใช่ผล)
+}
+
+-- ============================================
 -- ฟังก์ชันช่วยเหลือ
 -- ============================================
 function GetPlayerThumbnail(userId)
@@ -281,6 +300,7 @@ function GetMyInventory()
             
             local categories = {
                 Trowels = "Trowels",
+                Seeds = "🌱 Seeds",
                 Sprinklers = "Sprinklers",
                 WateringCans = "WateringCans",
                 Mushrooms = "Mushrooms",
@@ -311,27 +331,41 @@ function GetMyInventory()
                 end
             end
             
-            if Inventory.Seeds then
-                for name, count in pairs(Inventory.Seeds) do
-                    if count > 0 then
-                        local isFruitSeed = false
-                        for _, fName in ipairs(FRUIT_LIST) do
-                            if name == fName then
-                                isFruitSeed = true
-                                break
-                            end
-                        end
-                        if not isFruitSeed then
-                            table.insert(items, {
-                                Category = "🌱 Seeds",
-                                ItemKey = name,
-                                Count = count,
-                                DisplayName = name .. " 🌱"
-                            })
-                        end
-                    end
+            -- 🔥 ดึงเมล็ดพันธุ์ (Seed)
+if Inventory.Seeds then
+    for name, count in pairs(Inventory.Seeds) do
+        if count > 0 then
+            local isFruitSeed = false
+            for _, fName in ipairs(FRUIT_LIST) do
+                if name == fName then
+                    isFruitSeed = true
+                    break
                 end
             end
+            
+            if not isFruitSeed then
+                -- ตรวจสอบว่าเป็นเมล็ดพันธุ์ใน SEED_LIST
+                local isSeed = false
+                for _, sName in ipairs(SEED_LIST) do
+                    if name == sName then
+                        isSeed = true
+                        break
+                    end
+                end
+                
+                if isSeed then
+                    table.insert(items, {
+                        Category = "🌱 Seeds",
+                        ItemKey = name,
+                        Count = count,
+                        DisplayName = name .. " 🌱",
+                        IsSeed = true
+                    })
+                end
+            end
+        end
+    end
+end
             
             if Inventory.Pets then
                 for id, data in pairs(Inventory.Pets) do
