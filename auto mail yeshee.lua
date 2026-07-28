@@ -1,13 +1,12 @@
 -- ============================================
--- AUTO MAIL SYSTEM V17.1 (Mobile Ready + Draggable Toggle + History)
--- ปุ่ม Toggle ลากไปมาได้ + ประวัติการส่ง
+-- AUTO MAIL SYSTEM V14 (Complete - Fixed Fruits)
+-- แสดงผลไม้แยกจากเมล็ด
 -- ============================================
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -41,9 +40,6 @@ pcall(function()
     SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
 end)
 
--- ============================================
--- ตัวแปรหลัก
--- ============================================
 local isSending = false
 local isClaiming = false
 local SelectedItems = {}
@@ -53,28 +49,17 @@ local mailCount = 0
 local autoClaimEnabled = false
 local autoClaimTask = nil
 local selectedFruitInfo = nil
-local isGUIVisible = true
-local currentTab = "mail"
 
--- Drag variables สำหรับ Toggle
-local isToggleDragging = false
-local toggleDragStart, toggleStartPos
-local toggleButton = nil
-
--- Drag variables สำหรับ Main Frame
+-- Drag variables
 local isDragging = false
 local dragInput, dragStart, startPos
 
+-- ============================================
 -- ตัวแปรระบบค้นหา
+-- ============================================
 local selectedPlayer = nil
 local searchDebounce = false
 local itemSearchText = ""
-
--- ============================================
--- ประวัติการส่ง
--- ============================================
-local sendHistory = {}
-local MAX_HISTORY = 50
 
 -- ============================================
 -- ประกาศตัวแปร GUI
@@ -103,7 +88,9 @@ local itemList = nil
 local mainFrame = nil
 local screenGui = nil
 
--- ตัวแปรแสดงราคาผลไม้
+-- ============================================
+-- ตัวแปรสำหรับแสดงราคาผลไม้
+-- ============================================
 local priceDisplayFrame = nil
 local fruitNameLabel = nil
 local pricePerUnitLabel = nil
@@ -111,30 +98,12 @@ local totalPriceLabel = nil
 local countLabel = nil
 local sizeLabel = nil
 
--- ตัวแปร History
-local historyContainer = nil
-local historyList = nil
-local historyBadge = nil
-local tabMail = nil
-local tabHistory = nil
-
 -- ============================================
 -- CONFIG
 -- ============================================
 local MAX_ITEM_PER_SEND = 9999
 local MAX_SPLIT = 20
 local MAX_PER_ROUND = MAX_ITEM_PER_SEND * MAX_SPLIT
-
--- ============================================
--- 🔥 รายชื่อผลไม้
--- ============================================
-local FRUIT_LIST = {
-    "Carrot", "Tomato", "Apple", "Gold", "Star Fruit",
-    "Mushroom", "Dragon's Breath", "Venus Fly Trap",
-    "Venom Spitter", "Fire Fern", "Sun Bloom",
-    "Hypno Bloom", "Mega", "Moon Bloom", "Rainbow",
-    "Tulip", "Pomegranate", "Strawberry", "Bamboo"
-}
 
 -- ============================================
 -- 🔥 รายชื่อเมล็ดพันธุ์ (ไม่ใช่ผลไม้)
@@ -155,86 +124,18 @@ local SEED_ONLY = {
     "Bamboo",           -- เมล็ดพันธุ์ (ไม่ใช่ผล)
 }
 
--- ============================================
--- ฟังก์ชันช่วยเหลือ
--- ============================================
-function GetPlayerThumbnail(userId)
-    local success, thumb = pcall(function()
-        return Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size60x60)
-    end)
-    if success and thumb then
-        return thumb
-    end
-    return "rbxassetid://0"
-end
-
-function GetCurrentPlayerThumb()
-    return GetPlayerThumbnail(player.UserId)
-end
+-- 🔥 รายชื่อผลไม้ (ที่เก็บเกี่ยวได้)
+local FRUIT_LIST = {
+    "Carrot",    -- ผลไม้
+    "Tomato",    -- ผลไม้
+    "Apple",     -- ผลไม้
+    "Gold",      -- ผลไม้
+    "Star Fruit",-- ผลไม้
+    "Mushroom",  -- ผลไม้
+}
 
 -- ============================================
--- ฟังก์ชันดึงผลไม้จาก Backpack
--- ============================================
-function GetFruitsFromBackpack()
-    local fruits = {}
-    local backpack = player:FindFirstChild("Backpack")
-    
-    if not backpack then
-        return fruits
-    end
-    
-    for _, item in ipairs(backpack:GetChildren()) do
-        if item:IsA("Tool") then
-            local name = item.Name
-            
-            local isFruit = false
-            local fruitName = name
-            
-            for _, fName in ipairs(FRUIT_LIST) do
-                if string.find(name, fName) then
-                    isFruit = true
-                    fruitName = fName
-                    break
-                end
-            end
-            
-            if isFruit then
-                local mutation = "Normal"
-                local size = 1
-                local sizeStr = ""
-                
-                local mutationMatch = string.match(name, "%[(.-)%]")
-                if mutationMatch and not string.match(mutationMatch, "kg") then
-                    mutation = mutationMatch
-                end
-                
-                local sizeMatch = string.match(name, "%[(%d+%.?%d*)kg%]")
-                if sizeMatch then
-                    size = tonumber(sizeMatch) or 1
-                    sizeStr = sizeMatch .. "kg"
-                end
-                
-                table.insert(fruits, {
-                    name = fruitName,
-                    fullName = name,
-                    mutation = mutation,
-                    size = size,
-                    sizeStr = sizeStr,
-                    displayName = name,
-                    category = "🍎 Fruits",
-                    IsFruit = true,
-                    Count = 1,
-                    Item = item
-                })
-            end
-        end
-    end
-    
-    return fruits
-end
-
--- ============================================
--- ฟังก์ชันคำนวณราคาผลไม้
+-- 🔥 ฟังก์ชันคำนวณราคาผลไม้
 -- ============================================
 function GetFruitPrice(fruitName, sizeMultiplier, mutation, tax)
     if not FruitValueCalc then
@@ -260,20 +161,104 @@ function GetFruitPriceInfo(fruitName)
     local bigPrice = GetFruitPrice(fruitName, 5, "Normal", 0)
     local hugePrice = GetFruitPrice(fruitName, 10, "Normal", 0)
     
+    local mutations = {"Normal", "Shiny", "Golden", "Rainbow"}
+    local mutationPrices = {}
+    for _, mut in ipairs(mutations) do
+        mutationPrices[mut] = GetFruitPrice(fruitName, 1, mut, 0)
+    end
+    
     return {
         normal = normalPrice,
         big = bigPrice,
-        huge = hugePrice
+        huge = hugePrice,
+        mutations = mutationPrices
     }
 end
 
 -- ============================================
--- ฟังก์ชันดึง Inventory
+-- 🔥 ฟังก์ชันดึงผลไม้จาก Backpack
+-- ============================================
+function GetFruitsFromBackpack()
+    local fruits = {}
+    local backpack = player:FindFirstChild("Backpack")
+    
+    if not backpack then
+        return fruits
+    end
+    
+    for _, item in ipairs(backpack:GetChildren()) do
+        -- เช็คว่าเป็น Tool และมีชื่อที่บ่งบอกว่าเป็นผลไม้
+        if item:IsA("Tool") then
+            local name = item.Name
+            
+            -- ตรวจสอบว่าเป็นผลไม้ (มีรูปแบบ ชื่อ [Mutation] [ขนาด])
+            local fruitName = name
+            local mutation = "Normal"
+            local size = 1
+            
+            -- แยก Mutation และ Size ออกจากชื่อ
+            local match = string.match(name, "^(.-)%s*%[(.-)%]%s*%[(.-)%]$")
+            if match then
+                fruitName = match:match("^(.-)%s+%[") or match
+                -- หรือใช้ pattern ที่ง่ายกว่า
+                local parts = {}
+                for part in string.gmatch(name, "%[([^%]]+)%]") do
+                    table.insert(parts, part)
+                end
+                
+                if #parts >= 2 then
+                    mutation = parts[1] or "Normal"
+                    -- size = parts[2] (เช่น "14.79kg")
+                end
+            end
+            
+            -- รายชื่อผลไม้ที่รู้จัก
+            local fruitList = {
+                "Carrot", "Tomato", "Apple", "Gold", "Star Fruit",
+                "Mushroom", "Dragon's Breath", "Venus Fly Trap",
+                "Venom Spitter", "Fire Fern", "Sun Bloom",
+                "Hypno Bloom", "Mega", "Moon Bloom", "Rainbow",
+                "Tulip", "Pomegranate", "Strawberry", "Bamboo"
+            }
+            
+            -- ตรวจสอบว่าเป็นผลไม้หรือไม่
+            local isFruit = false
+            for _, fName in ipairs(fruitList) do
+                if string.find(name, fName) then
+                    isFruit = true
+                    break
+                end
+            end
+            
+            if isFruit then
+                -- ดึงขนาดจากชื่อ
+                local sizeMatch = string.match(name, "%[(%d+%.?%d*)kg%]")
+                local sizeMultiplier = sizeMatch and tonumber(sizeMatch) or 1
+                
+                table.insert(fruits, {
+                    name = fruitName,
+                    fullName = name,
+                    mutation = mutation,
+                    size = sizeMultiplier,
+                    displayName = fruitName,
+                    category = "🍎 Fruits",
+                    IsFruit = true,
+                    Count = 1 -- แต่ละชิ้นนับเป็น 1
+                })
+            end
+        end
+    end
+    
+    return fruits
+end
+
+-- ============================================
+-- 🔥 แก้ไขฟังก์ชัน GetMyInventory
 -- ============================================
 function GetMyInventory()
     local items = {}
     
-    -- 1. ดึงผลไม้จาก Backpack
+    -- 1. ดึงจาก Backpack (ผลไม้)
     local fruits = GetFruitsFromBackpack()
     for _, fruit in ipairs(fruits) do
         local price = GetFruitPrice(fruit.name, fruit.size or 1, fruit.mutation or "Normal", 0)
@@ -281,14 +266,14 @@ function GetMyInventory()
             Category = "🍎 Fruits",
             ItemKey = fruit.fullName,
             Count = 1,
-            DisplayName = fruit.displayName,
+            DisplayName = fruit.fullName,
             IsFruit = true,
             Price = price,
             FruitData = fruit
         })
     end
     
-    -- 2. ดึงจาก Inventory
+    -- 2. ดึงจาก Inventory (ไอเท็มอื่นๆ)
     local success, PlayerStateClient = pcall(function()
         return require(ReplicatedStorage:WaitForChild("ClientModules"):WaitForChild("PlayerStateClient"))
     end)
@@ -311,61 +296,33 @@ function GetMyInventory()
                 Props = "Props",
                 Stickers = "Stickers",
                 Trophies = "Trophies",
-                Eggs = "Eggs",
-                Rakes = "Rakes",
-                Ladders = "Ladders"
+                Eggs = "Eggs"
             }
             
             for category, catName in pairs(categories) do
                 if Inventory[category] then
                     for name, count in pairs(Inventory[category]) do
                         if count > 0 then
-                            table.insert(items, {
-                                Category = catName,
-                                ItemKey = name,
-                                Count = count,
-                                DisplayName = name
-                            })
+                            -- ข้ามเมล็ดพันธุ์ที่เป็นผลไม้ (จะไปโชว์ใน Backpack แทน)
+                            local isFruitSeed = false
+                            for _, fName in ipairs({"Carrot", "Tomato", "Apple", "Gold", "Star Fruit", "Mushroom"}) do
+                                if name == fName then
+                                    isFruitSeed = true
+                                    break
+                                end
+                            end
+                            if not isFruitSeed then
+                                table.insert(items, {
+                                    Category = catName,
+                                    ItemKey = name,
+                                    Count = count,
+                                    DisplayName = name
+                                })
+                            end
                         end
                     end
                 end
             end
-            
-            -- 🔥 ดึงเมล็ดพันธุ์ (Seed)
-if Inventory.Seeds then
-    for name, count in pairs(Inventory.Seeds) do
-        if count > 0 then
-            local isFruitSeed = false
-            for _, fName in ipairs(FRUIT_LIST) do
-                if name == fName then
-                    isFruitSeed = true
-                    break
-                end
-            end
-            
-            if not isFruitSeed then
-                -- ตรวจสอบว่าเป็นเมล็ดพันธุ์ใน SEED_LIST
-                local isSeed = false
-                for _, sName in ipairs(SEED_LIST) do
-                    if name == sName then
-                        isSeed = true
-                        break
-                    end
-                end
-                
-                if isSeed then
-                    table.insert(items, {
-                        Category = "🌱 Seeds",
-                        ItemKey = name,
-                        Count = count,
-                        DisplayName = name .. " 🌱",
-                        IsSeed = true
-                    })
-                end
-            end
-        end
-    end
-end
             
             if Inventory.Pets then
                 for id, data in pairs(Inventory.Pets) do
@@ -387,216 +344,45 @@ end
 end
 
 -- ============================================
--- 🔥 ประวัติการส่ง
+-- 🔥 แสดงราคาผลไม้
 -- ============================================
-function AddToHistory(receiverName, receiverId, itemName, count, category, status, note)
-    local entry = {
-        id = HttpService:GenerateGUID(false),
-        timestamp = os.time(),
-        timeStr = os.date("%H:%M"),
-        dateStr = os.date("%d/%m/%Y"),
-        receiverName = receiverName,
-        receiverId = receiverId,
-        itemName = itemName,
-        count = count,
-        category = category or "Unknown",
-        status = status or "✅ สำเร็จ",
-        note = note or "",
-        senderName = player.DisplayName or player.Name,
-        senderId = player.UserId
-    }
+function UpdatePriceDisplay(item)
+    if not priceDisplayFrame then return end
     
-    table.insert(sendHistory, 1, entry)
-    
-    if #sendHistory > MAX_HISTORY then
-        table.remove(sendHistory)
-    end
-    
-    UpdateHistoryUI()
-    UpdateHistoryBadge()
-end
-
-function UpdateHistoryUI()
-    if not historyList then return end
-    
-    for _, child in ipairs(historyList:GetChildren()) do
-        if child:IsA("Frame") then
-            child:Destroy()
-        end
-    end
-    
-    if #sendHistory == 0 then
-        local emptyLabel = Instance.new("TextLabel")
-        emptyLabel.Size = UDim2.new(1, 0, 0, 40)
-        emptyLabel.Text = "📭 ยังไม่มีประวัติการส่ง"
-        emptyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-        emptyLabel.TextSize = 12
-        emptyLabel.BackgroundTransparency = 1
-        emptyLabel.Font = Enum.Font.Gotham
-        emptyLabel.Parent = historyList
-        historyList.CanvasSize = UDim2.new(0, 0, 0, 45)
+    if not item or not item.IsFruit then
+        priceDisplayFrame.Visible = false
         return
     end
     
-    local totalHeight = 0
+    priceDisplayFrame.Visible = true
     
-    for _, entry in ipairs(sendHistory) do
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, -4, 0, 54)
-        row.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-        row.BackgroundTransparency = 0.2
-        row.BorderSizePixel = 0
-        row.Parent = historyList
-        
-        local rowCorner = Instance.new("UICorner")
-        rowCorner.CornerRadius = UDim.new(0, 5)
-        rowCorner.Parent = row
-        
-        -- ผู้ส่ง (เรา)
-        local senderAvatar = Instance.new("ImageLabel")
-        senderAvatar.Size = UDim2.new(0, 22, 0, 22)
-        senderAvatar.Position = UDim2.new(0, 3, 0, 4)
-        senderAvatar.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-        senderAvatar.BackgroundTransparency = 0.5
-        senderAvatar.BorderSizePixel = 0
-        senderAvatar.Parent = row
-        
-        local senderCorner = Instance.new("UICorner")
-        senderCorner.CornerRadius = UDim.new(0, 11)
-        senderCorner.Parent = senderAvatar
-        
-        task.spawn(function()
-            senderAvatar.Image = GetCurrentPlayerThumb()
-        end)
-        
-        local arrowLabel = Instance.new("TextLabel")
-        arrowLabel.Size = UDim2.new(0, 16, 0, 16)
-        arrowLabel.Position = UDim2.new(0, 28, 0, 7)
-        arrowLabel.Text = "➜"
-        arrowLabel.TextColor3 = Color3.fromRGB(100, 200, 100)
-        arrowLabel.TextSize = 14
-        arrowLabel.BackgroundTransparency = 1
-        arrowLabel.Font = Enum.Font.GothamBold
-        arrowLabel.Parent = row
-        
-        -- ผู้รับ
-        local receiverAvatar = Instance.new("ImageLabel")
-        receiverAvatar.Size = UDim2.new(0, 22, 0, 22)
-        receiverAvatar.Position = UDim2.new(0, 48, 0, 4)
-        receiverAvatar.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-        receiverAvatar.BackgroundTransparency = 0.5
-        receiverAvatar.BorderSizePixel = 0
-        receiverAvatar.Parent = row
-        
-        local receiverCorner = Instance.new("UICorner")
-        receiverCorner.CornerRadius = UDim.new(0, 11)
-        receiverCorner.Parent = receiverAvatar
-        
-        task.spawn(function()
-            receiverAvatar.Image = GetPlayerThumbnail(entry.receiverId)
-        end)
-        
-        -- ชื่อผู้รับ
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(0, 120, 0, 14)
-        nameLabel.Position = UDim2.new(0, 74, 0, 2)
-        nameLabel.Text = entry.receiverName
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        nameLabel.TextSize = 11
-        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.Parent = row
-        
-        -- รายละเอียด
-        local detailLabel = Instance.new("TextLabel")
-        detailLabel.Size = UDim2.new(1, -200, 0, 12)
-        detailLabel.Position = UDim2.new(0, 74, 0, 17)
-        detailLabel.Text = string.format("📦 %s x%d", entry.itemName, entry.count)
-        detailLabel.TextColor3 = Color3.fromRGB(200, 255, 200)
-        detailLabel.TextSize = 9
-        detailLabel.TextXAlignment = Enum.TextXAlignment.Left
-        detailLabel.BackgroundTransparency = 1
-        detailLabel.Font = Enum.Font.Gotham
-        detailLabel.Parent = row
-        
-        -- หมวดหมู่
-        local catLabel = Instance.new("TextLabel")
-        catLabel.Size = UDim2.new(0, 80, 0, 10)
-        catLabel.Position = UDim2.new(0, 74, 0, 29)
-        catLabel.Text = entry.category
-        catLabel.TextColor3 = Color3.fromRGB(150, 200, 150)
-        catLabel.TextSize = 8
-        catLabel.TextXAlignment = Enum.TextXAlignment.Left
-        catLabel.BackgroundTransparency = 1
-        catLabel.Font = Enum.Font.Gotham
-        catLabel.Parent = row
-        
-        -- เวลา
-        local timeLabel = Instance.new("TextLabel")
-        timeLabel.Size = UDim2.new(0, 60, 0, 12)
-        timeLabel.Position = UDim2.new(1, -135, 0, 2)
-        timeLabel.Text = entry.timeStr
-        timeLabel.TextColor3 = Color3.fromRGB(150, 150, 200)
-        timeLabel.TextSize = 9
-        timeLabel.TextXAlignment = Enum.TextXAlignment.Right
-        timeLabel.BackgroundTransparency = 1
-        timeLabel.Font = Enum.Font.Gotham
-        timeLabel.Parent = row
-        
-        -- วันที่
-        local dateLabel = Instance.new("TextLabel")
-        dateLabel.Size = UDim2.new(0, 80, 0, 10)
-        dateLabel.Position = UDim2.new(1, -135, 0, 15)
-        dateLabel.Text = entry.dateStr
-        dateLabel.TextColor3 = Color3.fromRGB(120, 120, 170)
-        dateLabel.TextSize = 8
-        dateLabel.TextXAlignment = Enum.TextXAlignment.Right
-        dateLabel.BackgroundTransparency = 1
-        dateLabel.Font = Enum.Font.Gotham
-        dateLabel.Parent = row
-        
-        -- สถานะ
-        local statusLabel2 = Instance.new("TextLabel")
-        statusLabel2.Size = UDim2.new(0, 60, 0, 14)
-        statusLabel2.Position = UDim2.new(1, -60, 0, 4)
-        statusLabel2.Text = entry.status
-        statusLabel2.TextColor3 = entry.status == "✅ สำเร็จ" and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 100, 100)
-        statusLabel2.TextSize = 8
-        statusLabel2.TextXAlignment = Enum.TextXAlignment.Right
-        statusLabel2.BackgroundTransparency = 1
-        statusLabel2.Font = Enum.Font.GothamBold
-        statusLabel2.Parent = row
-        
-        -- หมายเหตุ
-        if entry.note and entry.note ~= "" then
-            local noteLabel = Instance.new("TextLabel")
-            noteLabel.Size = UDim2.new(0, 100, 0, 10)
-            noteLabel.Position = UDim2.new(0, 74, 0, 40)
-            noteLabel.Text = "✏️ " .. entry.note
-            noteLabel.TextColor3 = Color3.fromRGB(200, 180, 150)
-            noteLabel.TextSize = 7
-            noteLabel.TextXAlignment = Enum.TextXAlignment.Left
-            noteLabel.BackgroundTransparency = 1
-            noteLabel.Font = Enum.Font.Gotham
-            noteLabel.Parent = row
-        end
-        
-        totalHeight = totalHeight + 56
+    -- แยกชื่อผลไม้และข้อมูล
+    local fruitName = item.FruitData and item.FruitData.name or item.ItemKey
+    local mutation = item.FruitData and item.FruitData.mutation or "Normal"
+    local size = item.FruitData and item.FruitData.size or 1
+    
+    local priceInfo = GetFruitPriceInfo(fruitName)
+    
+    if fruitNameLabel then
+        fruitNameLabel.Text = "🍎 " .. fruitName
     end
     
-    historyList.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 10)
-end
-
-function UpdateHistoryBadge()
-    if historyBadge then
-        if #sendHistory > 0 then
-            historyBadge.Text = "📜 " .. #sendHistory
-            historyBadge.TextColor3 = Color3.fromRGB(200, 200, 255)
-        else
-            historyBadge.Text = "📜"
-            historyBadge.TextColor3 = Color3.fromRGB(150, 150, 180)
-        end
+    if pricePerUnitLabel then
+        local price = GetFruitPrice(fruitName, size, mutation, 0)
+        pricePerUnitLabel.Text = "💰 " .. price .. " (ขนาด " .. size .. "x)"
+    end
+    
+    if totalPriceLabel then
+        totalPriceLabel.Text = "💎 รวม: " .. (GetFruitPrice(fruitName, size, mutation, 0) * (item.Count or 1))
+    end
+    
+    if countLabel then
+        countLabel.Text = "📦 x" .. (item.Count or 1)
+    end
+    
+    if sizeLabel then
+        sizeLabel.Text = string.format("ขนาด: 1x=%d | 5x=%d | 10x=%d", 
+            priceInfo.normal, priceInfo.big, priceInfo.huge)
     end
 end
 
@@ -1001,18 +787,6 @@ function ToggleAutoClaim()
 end
 
 -- ============================================
--- 🔥 Toggle GUI (เปิด/ปิด + ลากได้)
--- ============================================
-function ToggleGUI()
-    isGUIVisible = not isGUIVisible
-    mainFrame.Visible = isGUIVisible
-    if toggleButton then
-        toggleButton.Text = isGUIVisible and "📭" or "📬"
-        toggleButton.BackgroundColor3 = isGUIVisible and Color3.fromRGB(40, 180, 70) or Color3.fromRGB(180, 45, 45)
-    end
-end
-
--- ============================================
 -- ระบบค้นหาผู้เล่น
 -- ============================================
 function SearchPlayers(searchText)
@@ -1069,11 +843,22 @@ function SearchPlayerGlobal(username)
     return nil
 end
 
+function GetPlayerThumbnail(userId)
+    local success, thumb = pcall(function()
+        return Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size60x60)
+    end)
+    if success and thumb then
+        return thumb
+    end
+    return "rbxassetid://0"
+end
+
 -- ============================================
 -- Category Icons & Colors
 -- ============================================
 local CATEGORY_ICONS = {
     Trowels = "🔧",
+    Seeds = "🌱",
     Sprinklers = "💧",
     WateringCans = "🪣",
     Mushrooms = "🍄",
@@ -1094,6 +879,7 @@ local CATEGORY_ICONS = {
 
 local CATEGORY_COLORS = {
     Trowels = Color3.fromRGB(100, 200, 150),
+    Seeds = Color3.fromRGB(80, 220, 80),
     Sprinklers = Color3.fromRGB(80, 200, 220),
     WateringCans = Color3.fromRGB(80, 220, 200),
     Mushrooms = Color3.fromRGB(200, 180, 100),
@@ -1113,7 +899,7 @@ local CATEGORY_COLORS = {
 }
 
 -- ============================================
--- 🔥 สร้าง GUI
+-- 🔥 สร้าง GUI (ส่วนที่เหลือ)
 -- ============================================
 local function CreateGUI()
     local oldGui = playerGui:FindFirstChild("AutoMailGUI")
@@ -1124,101 +910,15 @@ local function CreateGUI()
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
     
-    -- ============================================
-    -- 🔥 Toggle Button (ลากได้ + เปิด/ปิด GUI)
-    -- ============================================
-    toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(0, 50, 0, 50)
-    toggleButton.Position = UDim2.new(0.85, -25, 0.1, 30)
-    toggleButton.Text = "📭"
-    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.TextSize = 24
-    toggleButton.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
-    toggleButton.BackgroundTransparency = 0.2
-    toggleButton.BorderSizePixel = 0
-    toggleButton.Font = Enum.Font.GothamBold
-    toggleButton.ZIndex = 999
-    toggleButton.Parent = screenGui
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 25)
-    toggleCorner.Parent = toggleButton
-    
-    -- Shadow
-    local toggleShadow = Instance.new("ImageLabel")
-    toggleShadow.Size = UDim2.new(1.3, 0, 1.3, 0)
-    toggleShadow.Position = UDim2.new(-0.15, 0, -0.15, 0)
-    toggleShadow.Image = "rbxassetid://1316045230"
-    toggleShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    toggleShadow.ImageTransparency = 0.7
-    toggleShadow.BackgroundTransparency = 1
-    toggleShadow.ZIndex = 998
-    toggleShadow.Parent = toggleButton
-    
-    -- Glow ring
-    local glowRing = Instance.new("Frame")
-    glowRing.Size = UDim2.new(1.2, 0, 1.2, 0)
-    glowRing.Position = UDim2.new(-0.1, 0, -0.1, 0)
-    glowRing.BackgroundTransparency = 1
-    glowRing.BorderSizePixel = 2
-    glowRing.BorderColor3 = Color3.fromRGB(60, 200, 80)
-    glowRing.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    glowRing.BorderMode = Enum.BorderMode.Outline
-    glowRing.ZIndex = 997
-    glowRing.Parent = toggleButton
-    
-    local glowRingCorner = Instance.new("UICorner")
-    glowRingCorner.CornerRadius = UDim.new(0, 30)
-    glowRingCorner.Parent = glowRing
-    
-    -- 🔥 Toggle Button Drag System
-    toggleButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-           input.UserInputType == Enum.UserInputType.Touch then
-            isToggleDragging = true
-            toggleDragStart = input.Position
-            toggleStartPos = toggleButton.Position
-        end
-    end)
-    
-    toggleButton.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or
-           input.UserInputType == Enum.UserInputType.Touch then
-            if isToggleDragging then
-                local delta = input.Position - toggleDragStart
-                toggleButton.Position = UDim2.new(
-                    toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X,
-                    toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y
-                )
-            end
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or
-           input.UserInputType == Enum.UserInputType.Touch then
-            isToggleDragging = false
-        end
-    end)
-    
-    toggleButton.MouseButton1Click:Connect(ToggleGUI)
-    toggleButton.TouchTap:Connect(ToggleGUI)
-    
-    -- ============================================
-    -- Main Frame (Center)
-    -- ============================================
-    local frameWidth = 680
-    local frameHeight = 560
-    
-    mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, frameWidth, 0, frameHeight)
-    mainFrame.Position = UDim2.new(0.5, -frameWidth/2, 0.5, -frameHeight/2)
+    -- Main Frame (Mini)
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 580, 0, 500)
+    mainFrame.Position = UDim2.new(0.5, -290, 0.3, -250)
     mainFrame.BackgroundColor3 = Color3.fromRGB(10, 30, 18)
     mainFrame.BackgroundTransparency = 0.03
     mainFrame.BorderSizePixel = 0
     mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
-    mainFrame.Visible = true
     
     -- Main Gradient
     local mainGradient = Instance.new("UIGradient")
@@ -1313,18 +1013,13 @@ local function CreateGUI()
     closeCorner.Parent = closeBtn
     
     closeBtn.MouseButton1Click:Connect(function()
-        mainFrame.Visible = false
-        if toggleButton then
-            toggleButton.Text = "📬"
-            toggleButton.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
-        end
-        isGUIVisible = false
+        screenGui:Destroy()
     end)
     closeBtn.TouchTap:Connect(function()
-        closeBtn.MouseButton1Click:Fire()
+        screenGui:Destroy()
     end)
     
-    -- Drag System (Main Frame)
+    -- Drag System
     titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or 
            input.UserInputType == Enum.UserInputType.Touch then
@@ -1359,82 +1054,20 @@ local function CreateGUI()
         end
     end)
     
-    -- ============================================
-    -- 🔥 Tabs
-    -- ============================================
-    local tabsFrame = Instance.new("Frame")
-    tabsFrame.Size = UDim2.new(1, -12, 0, 28)
-    tabsFrame.Position = UDim2.new(0, 6, 0, 40)
-    tabsFrame.BackgroundTransparency = 1
-    tabsFrame.Parent = mainFrame
-    
-    tabMail = Instance.new("TextButton")
-    tabMail.Size = UDim2.new(0, 120, 1, 0)
-    tabMail.Position = UDim2.new(0, 0, 0, 0)
-    tabMail.Text = "📬 Mail"
-    tabMail.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tabMail.TextSize = 12
-    tabMail.BackgroundColor3 = Color3.fromRGB(30, 100, 50)
-    tabMail.BackgroundTransparency = 0.2
-    tabMail.BorderSizePixel = 0
-    tabMail.Font = Enum.Font.GothamBold
-    tabMail.Parent = tabsFrame
-    
-    local tabCorner1 = Instance.new("UICorner")
-    tabCorner1.CornerRadius = UDim.new(0, 6)
-    tabCorner1.Parent = tabMail
-    
-    tabHistory = Instance.new("TextButton")
-    tabHistory.Size = UDim2.new(0, 120, 1, 0)
-    tabHistory.Position = UDim2.new(0, 124, 0, 0)
-    tabHistory.Text = "📜 History"
-    tabHistory.TextColor3 = Color3.fromRGB(200, 200, 200)
-    tabHistory.TextSize = 12
-    tabHistory.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    tabHistory.BackgroundTransparency = 0.4
-    tabHistory.BorderSizePixel = 0
-    tabHistory.Font = Enum.Font.GothamBold
-    tabHistory.Parent = tabsFrame
-    
-    local tabCorner2 = Instance.new("UICorner")
-    tabCorner2.CornerRadius = UDim.new(0, 6)
-    tabCorner2.Parent = tabHistory
-    
-    historyBadge = Instance.new("TextLabel")
-    historyBadge.Size = UDim2.new(0, 30, 1, 0)
-    historyBadge.Position = UDim2.new(1, -34, 0, 0)
-    historyBadge.Text = "📜"
-    historyBadge.TextColor3 = Color3.fromRGB(150, 150, 180)
-    historyBadge.TextSize = 10
-    historyBadge.BackgroundTransparency = 1
-    historyBadge.Font = Enum.Font.GothamBold
-    historyBadge.TextXAlignment = Enum.TextXAlignment.Right
-    historyBadge.Parent = tabHistory
-    
-    -- ============================================
     -- Content Container
-    -- ============================================
     local contentContainer = Instance.new("Frame")
-    contentContainer.Size = UDim2.new(1, -12, 1, -80)
-    contentContainer.Position = UDim2.new(0, 6, 0, 72)
+    contentContainer.Size = UDim2.new(1, -12, 1, -44)
+    contentContainer.Position = UDim2.new(0, 6, 0, 42)
     contentContainer.BackgroundTransparency = 1
     contentContainer.Parent = mainFrame
     
-    -- ============================================
-    -- 🔥 Mail Tab Content
-    -- ============================================
-    local mailContainer = Instance.new("Frame")
-    mailContainer.Size = UDim2.new(1, 0, 1, 0)
-    mailContainer.BackgroundTransparency = 1
-    mailContainer.Parent = contentContainer
-    
     -- Left Panel
     local leftPanel = Instance.new("Frame")
-    leftPanel.Size = UDim2.new(0, 120, 1, 0)
+    leftPanel.Size = UDim2.new(0, 110, 1, 0)
     leftPanel.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
     leftPanel.BackgroundTransparency = 0.4
     leftPanel.BorderSizePixel = 0
-    leftPanel.Parent = mailContainer
+    leftPanel.Parent = contentContainer
     
     local leftCorner = Instance.new("UICorner")
     leftCorner.CornerRadius = UDim.new(0, 6)
@@ -1475,12 +1108,12 @@ local function CreateGUI()
     
     -- Right Panel
     local rightPanel = Instance.new("Frame")
-    rightPanel.Size = UDim2.new(1, -132, 1, 0)
-    rightPanel.Position = UDim2.new(0, 126, 0, 0)
+    rightPanel.Size = UDim2.new(1, -122, 1, 0)
+    rightPanel.Position = UDim2.new(0, 116, 0, 0)
     rightPanel.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
     rightPanel.BackgroundTransparency = 0.4
     rightPanel.BorderSizePixel = 0
-    rightPanel.Parent = mailContainer
+    rightPanel.Parent = contentContainer
     
     local rightCorner = Instance.new("UICorner")
     rightCorner.CornerRadius = UDim.new(0, 6)
@@ -1720,7 +1353,7 @@ local function CreateGUI()
     noteCorner.CornerRadius = UDim.new(0, 4)
     noteCorner.Parent = noteBox
     
-    -- Price Display
+    -- 🔥 Price Display (แสดงราคาผลไม้)
     priceDisplayFrame = Instance.new("Frame")
     priceDisplayFrame.Size = UDim2.new(1, -6, 0, 48)
     priceDisplayFrame.Position = UDim2.new(0, 3, 0, 85)
@@ -1734,6 +1367,7 @@ local function CreateGUI()
     priceCorner.CornerRadius = UDim.new(0, 5)
     priceCorner.Parent = priceDisplayFrame
     
+    -- Fruit Name
     fruitNameLabel = Instance.new("TextLabel")
     fruitNameLabel.Size = UDim2.new(0, 100, 0, 18)
     fruitNameLabel.Position = UDim2.new(0, 6, 0, 1)
@@ -1745,6 +1379,7 @@ local function CreateGUI()
     fruitNameLabel.TextXAlignment = Enum.TextXAlignment.Left
     fruitNameLabel.Parent = priceDisplayFrame
     
+    -- Price per unit
     pricePerUnitLabel = Instance.new("TextLabel")
     pricePerUnitLabel.Size = UDim2.new(0, 85, 0, 14)
     pricePerUnitLabel.Position = UDim2.new(0, 6, 0, 20)
@@ -1756,6 +1391,7 @@ local function CreateGUI()
     pricePerUnitLabel.TextXAlignment = Enum.TextXAlignment.Left
     pricePerUnitLabel.Parent = priceDisplayFrame
     
+    -- Count
     countLabel = Instance.new("TextLabel")
     countLabel.Size = UDim2.new(0, 60, 0, 14)
     countLabel.Position = UDim2.new(0, 95, 0, 20)
@@ -1767,6 +1403,7 @@ local function CreateGUI()
     countLabel.TextXAlignment = Enum.TextXAlignment.Left
     countLabel.Parent = priceDisplayFrame
     
+    -- Total Price
     totalPriceLabel = Instance.new("TextLabel")
     totalPriceLabel.Size = UDim2.new(1, -100, 0, 18)
     totalPriceLabel.Position = UDim2.new(0, 160, 0, 1)
@@ -1778,10 +1415,11 @@ local function CreateGUI()
     totalPriceLabel.TextXAlignment = Enum.TextXAlignment.Right
     totalPriceLabel.Parent = priceDisplayFrame
     
+    -- Size info
     sizeLabel = Instance.new("TextLabel")
     sizeLabel.Size = UDim2.new(1, -8, 0, 12)
     sizeLabel.Position = UDim2.new(0, 6, 0, 35)
-    sizeLabel.Text = "1x=100 | 5x=500 | 10x=1,000"
+    sizeLabel.Text = "ขนาด: 1x=100 | 5x=500 | 10x=1,000"
     sizeLabel.TextColor3 = Color3.fromRGB(150, 200, 200)
     sizeLabel.TextSize = 8
     sizeLabel.BackgroundTransparency = 1
@@ -2111,6 +1749,7 @@ local function CreateGUI()
     sendCorner.CornerRadius = UDim.new(0, 4)
     sendCorner.Parent = sendBtn
     
+    -- Send Button Gradient
     local sendGradient = Instance.new("UIGradient")
     sendGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 200, 80)),
@@ -2126,118 +1765,9 @@ local function CreateGUI()
         TweenService:Create(sendBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
     end)
     
-    -- ============================================
-    -- 🔥 History Tab Content
-    -- ============================================
-    historyContainer = Instance.new("Frame")
-    historyContainer.Size = UDim2.new(1, 0, 1, 0)
-    historyContainer.BackgroundTransparency = 1
-    historyContainer.Visible = false
-    historyContainer.Parent = contentContainer
-    
-    local historyHeader = Instance.new("Frame")
-    historyHeader.Size = UDim2.new(1, 0, 0, 30)
-    historyHeader.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-    historyHeader.BackgroundTransparency = 0.3
-    historyHeader.BorderSizePixel = 0
-    historyHeader.Parent = historyContainer
-    
-    local historyHeaderCorner = Instance.new("UICorner")
-    historyHeaderCorner.CornerRadius = UDim.new(0, 6)
-    historyHeaderCorner.Parent = historyHeader
-    
-    local historyTitle = Instance.new("TextLabel")
-    historyTitle.Size = UDim2.new(1, -80, 1, 0)
-    historyTitle.Position = UDim2.new(0, 10, 0, 0)
-    historyTitle.Text = "📜 ประวัติการส่ง"
-    historyTitle.TextColor3 = Color3.fromRGB(200, 200, 255)
-    historyTitle.TextSize = 13
-    historyTitle.TextXAlignment = Enum.TextXAlignment.Left
-    historyTitle.BackgroundTransparency = 1
-    historyTitle.Font = Enum.Font.GothamBold
-    historyTitle.Parent = historyHeader
-    
-    local clearHistoryBtn = Instance.new("TextButton")
-    clearHistoryBtn.Size = UDim2.new(0, 60, 0, 20)
-    clearHistoryBtn.Position = UDim2.new(1, -70, 0, 5)
-    clearHistoryBtn.Text = "🗑️ ล้าง"
-    clearHistoryBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    clearHistoryBtn.TextSize = 9
-    clearHistoryBtn.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
-    clearHistoryBtn.BackgroundTransparency = 0.3
-    clearHistoryBtn.BorderSizePixel = 0
-    clearHistoryBtn.Font = Enum.Font.GothamBold
-    clearHistoryBtn.Parent = historyHeader
-    
-    local clearHistoryCorner = Instance.new("UICorner")
-    clearHistoryCorner.CornerRadius = UDim.new(0, 4)
-    clearHistoryCorner.Parent = clearHistoryBtn
-    
-    clearHistoryBtn.MouseButton1Click:Connect(function()
-        sendHistory = {}
-        UpdateHistoryUI()
-        UpdateHistoryBadge()
-        UpdateStatus("🗑️ ล้างประวัติแล้ว", Color3.fromRGB(200, 200, 200))
-    end)
-    clearHistoryBtn.TouchTap:Connect(function()
-        clearHistoryBtn.MouseButton1Click:Fire()
-    end)
-    
-    historyList = Instance.new("ScrollingFrame")
-    historyList.Size = UDim2.new(1, -4, 1, -40)
-    historyList.Position = UDim2.new(0, 2, 0, 35)
-    historyList.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    historyList.BackgroundTransparency = 0.4
-    historyList.BorderSizePixel = 0
-    historyList.CanvasSize = UDim2.new(0, 0, 0, 0)
-    historyList.ScrollBarThickness = 3
-    historyList.ScrollBarImageColor3 = Color3.fromRGB(60, 200, 80)
-    historyList.Parent = historyContainer
-    
-    local historyListCorner = Instance.new("UICorner")
-    historyListCorner.CornerRadius = UDim.new(0, 6)
-    historyListCorner.Parent = historyList
-    
-    local historyLayout = Instance.new("UIListLayout")
-    historyLayout.Padding = UDim.new(0, 4)
-    historyLayout.Parent = historyList
-    
-    -- ============================================
-    -- 🔥 Tab Switching
-    -- ============================================
-    function SwitchTab(tab)
-        if tab == "mail" then
-            mailContainer.Visible = true
-            historyContainer.Visible = false
-            tabMail.BackgroundColor3 = Color3.fromRGB(30, 100, 50)
-            tabMail.BackgroundTransparency = 0.2
-            tabMail.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tabHistory.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-            tabHistory.BackgroundTransparency = 0.4
-            tabHistory.TextColor3 = Color3.fromRGB(200, 200, 200)
-            currentTab = "mail"
-        else
-            mailContainer.Visible = false
-            historyContainer.Visible = true
-            tabHistory.BackgroundColor3 = Color3.fromRGB(30, 100, 50)
-            tabHistory.BackgroundTransparency = 0.2
-            tabHistory.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tabMail.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-            tabMail.BackgroundTransparency = 0.4
-            tabMail.TextColor3 = Color3.fromRGB(200, 200, 200)
-            currentTab = "history"
-            UpdateHistoryUI()
-        end
-    end
-    
-    tabMail.MouseButton1Click:Connect(function() SwitchTab("mail") end)
-    tabMail.TouchTap:Connect(function() SwitchTab("mail") end)
-    tabHistory.MouseButton1Click:Connect(function() SwitchTab("history") end)
-    tabHistory.TouchTap:Connect(function() SwitchTab("history") end)
-    
-    -- ============================================
+    -- ================================
     -- ฟังก์ชันหลัก
-    -- ============================================
+    -- ================================
     
     function UpdateSearchResults()
         if not resultsContainer then return end
@@ -2600,6 +2130,7 @@ local function CreateGUI()
                     amtLabel.Font = Enum.Font.Gotham
                     amtLabel.Parent = row
                     
+                    -- 🔥 Click to show price (เฉพาะผลไม้)
                     if item.IsFruit then
                         local selectArea = Instance.new("TextButton")
                         selectArea.Size = UDim2.new(1, -50, 1, 0)
@@ -2658,26 +2189,8 @@ local function CreateGUI()
                             local ok = SendSingleMail(targetUserId, item.Category, item.ItemKey, amt, note)
                             if ok then
                                 UpdateStatus("✅ ส่ง " .. item.DisplayName .. " x" .. amt .. " สำเร็จ!", Color3.fromRGB(150, 255, 150))
-                                AddToHistory(
-                                    selectedPlayer.DisplayName,
-                                    selectedPlayer.UserId,
-                                    item.DisplayName,
-                                    amt,
-                                    item.Category,
-                                    "✅ สำเร็จ",
-                                    note
-                                )
                             else
                                 UpdateStatus("❌ ส่งล้มเหลว!", Color3.fromRGB(255, 150, 150))
-                                AddToHistory(
-                                    selectedPlayer.DisplayName,
-                                    selectedPlayer.UserId,
-                                    item.DisplayName,
-                                    amt,
-                                    item.Category,
-                                    "❌ ล้มเหลว",
-                                    note
-                                )
                             end
                         end)
                     end)
@@ -2729,50 +2242,7 @@ local function CreateGUI()
     end
     
     -- ================================
-    -- Update Price Display
-    -- ================================
-    function UpdatePriceDisplay(item)
-        if not priceDisplayFrame then return end
-        
-        if not item or not item.IsFruit then
-            priceDisplayFrame.Visible = false
-            return
-        end
-        
-        priceDisplayFrame.Visible = true
-        
-        local fruitName = item.FruitData and item.FruitData.name or item.ItemKey
-        local mutation = item.FruitData and item.FruitData.mutation or "Normal"
-        local size = item.FruitData and item.FruitData.size or 1
-        local fullName = item.DisplayName or item.ItemKey
-        
-        local price = GetFruitPrice(fruitName, size, mutation, 0)
-        local priceInfo = GetFruitPriceInfo(fruitName)
-        
-        if fruitNameLabel then
-            fruitNameLabel.Text = "🍎 " .. fruitName
-        end
-        
-        if pricePerUnitLabel then
-            pricePerUnitLabel.Text = "💰 " .. price .. " (ขนาด " .. size .. "x)"
-        end
-        
-        if totalPriceLabel then
-            totalPriceLabel.Text = "💎 รวม: " .. price
-        end
-        
-        if countLabel then
-            countLabel.Text = "📦 x1"
-        end
-        
-        if sizeLabel then
-            sizeLabel.Text = string.format("1x=%d | 5x=%d | 10x=%d", 
-                priceInfo.normal, priceInfo.big, priceInfo.huge)
-        end
-    end
-    
-    -- ================================
-    -- Send All Selected
+    -- Send All
     -- ================================
     function SendAllSelected()
         if #SelectedItems == 0 then
@@ -2818,26 +2288,8 @@ local function CreateGUI()
                 local ok = SendSingleMail(selectedPlayer.UserId, item.Category, item.ItemKey, sendAmount, note)
                 if ok then
                     successCount = successCount + 1
-                    AddToHistory(
-                        selectedPlayer.DisplayName,
-                        selectedPlayer.UserId,
-                        item.DisplayName,
-                        sendAmount,
-                        item.Category,
-                        "✅ สำเร็จ",
-                        note
-                    )
                 else
                     failCount = failCount + 1
-                    AddToHistory(
-                        selectedPlayer.DisplayName,
-                        selectedPlayer.UserId,
-                        item.DisplayName,
-                        sendAmount,
-                        item.Category,
-                        "❌ ล้มเหลว",
-                        note
-                    )
                 end
                 
                 task.wait(0.15)
@@ -2871,7 +2323,6 @@ local function CreateGUI()
     task.wait(0.3)
     BuildCategoryList()
     UpdateMailCount()
-    UpdateHistoryBadge()
     UpdateStatus("✅ พร้อมใช้งาน!", Color3.fromRGB(150, 255, 150))
     
     -- Auto refresh ทุก 30 วินาที
@@ -2882,12 +2333,10 @@ local function CreateGUI()
         end
     end)
     
-    print("✅ Auto Mail V17.1 (History + Draggable Toggle) พร้อมใช้งาน!")
-    print("📌 กดปุ่ม 📭 เพื่อเปิด/ปิด GUI (ลากไปมาได้)")
+    print("✅ Auto Mail V14 (Fixed Fruits) พร้อมใช้งาน!")
     print("📌 คลิกที่ผลไม้เพื่อดูราคา")
     print("📌 รับเมล: กด '📬 1' = รับทีละเมล, '📬 รับทั้งหมด' = รับทั้งหมด")
     print("📌 Auto Claim: กดปุ่ม '▶️ OFF' เพื่อเปิดใช้งาน")
-    print("📌 ประวัติการส่ง: ดูได้ที่แท็บ '📜 History'")
 end
 
 -- ============================================
