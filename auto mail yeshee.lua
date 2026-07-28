@@ -1,6 +1,8 @@
 -- ============================================
--- AUTO MAIL SYSTEM V14 (Complete - Fixed Fruits)
--- แสดงผลไม้แยกจากเมล็ด
+-- AUTO MAIL SYSTEM V4 (Green Theme) - DUPLEX SEND
+-- ขนาด 594x420 ธีมเขียว โมเดิร์น
+-- + ค้นหาผู้เล่นแบบ Global
+-- + ส่งแบบ Duplex (2 รายการ/รอบ) เพื่อให้ส่งได้มากกว่า 9999 ต่อรอบ
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -24,256 +26,27 @@ if not success then
 end
 
 local Mailbox = Networking.Mailbox
-
--- ============================================
--- โหลดโมดูลคำนวณราคา
--- ============================================
-local FruitValueCalc
-local SeedData
-local MutationData
-local SellValueData
-
-pcall(function()
-    FruitValueCalc = require(ReplicatedStorage.SharedModules.FruitValueCalc)
-    SeedData = require(ReplicatedStorage.SharedModules.SeedData)
-    MutationData = require(ReplicatedStorage.SharedModules.MutationData)
-    SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
-end)
-
 local isSending = false
-local isClaiming = false
 local SelectedItems = {}
 local InventoryItems = {}
 local expandedCategories = {}
-local mailCount = 0
-local autoClaimEnabled = false
-local autoClaimTask = nil
-local selectedFruitInfo = nil
 
 -- Drag variables
 local isDragging = false
 local dragInput, dragStart, startPos
 
 -- ============================================
--- ตัวแปรระบบค้นหา
+-- ตัวแปรระบบค้นหาผู้เล่น
 -- ============================================
 local selectedPlayer = nil
 local searchDebounce = false
-local itemSearchText = ""
 
 -- ============================================
--- ประกาศตัวแปร GUI
--- ============================================
-local statusLabel = nil
-local batchInfoLabel = nil
-local mailBadge = nil
-local claimAllBtn = nil
-local claimSingleBtn = nil
-local autoClaimBtn = nil
-local sendBtn = nil
-local totalLabel = nil
-local selectedLabel = nil
-local searchBox = nil
-local itemSearchBox = nil
-local selectedDisplay = nil
-local avatarImage = nil
-local selectedName = nil
-local selectedDisplayName = nil
-local globalBadge = nil
-local resultsContainer = nil
-local amountBox = nil
-local noteBox = nil
-local categoryList = nil
-local itemList = nil
-local mainFrame = nil
-local screenGui = nil
-
--- ============================================
--- ตัวแปรสำหรับแสดงราคาผลไม้
--- ============================================
-local priceDisplayFrame = nil
-local fruitNameLabel = nil
-local pricePerUnitLabel = nil
-local totalPriceLabel = nil
-local countLabel = nil
-local sizeLabel = nil
-
--- ============================================
--- CONFIG
--- ============================================
-local MAX_ITEM_PER_SEND = 9999
-local MAX_SPLIT = 20
-local MAX_PER_ROUND = MAX_ITEM_PER_SEND * MAX_SPLIT
-
--- ============================================
--- 🔥 รายชื่อเมล็ดพันธุ์ (ไม่ใช่ผลไม้)
--- ============================================
-local SEED_ONLY = {
-    "Dragon's Breath",  -- เมล็ดพันธุ์ Dragon's Breath (ไม่ใช่ผล)
-    "Venus Fly Trap",   -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Venom Spitter",    -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Fire Fern",        -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Sun Bloom",        -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Hypno Bloom",      -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Mega",             -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Moon Bloom",       -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Rainbow",          -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Tulip",            -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Pomegranate",      -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Strawberry",       -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-    "Bamboo",           -- เมล็ดพันธุ์ (ไม่ใช่ผล)
-}
-
--- 🔥 รายชื่อผลไม้ (ที่เก็บเกี่ยวได้)
-local FRUIT_LIST = {
-    "Carrot",    -- ผลไม้
-    "Tomato",    -- ผลไม้
-    "Apple",     -- ผลไม้
-    "Gold",      -- ผลไม้
-    "Star Fruit",-- ผลไม้
-    "Mushroom",  -- ผลไม้
-}
-
--- ============================================
--- 🔥 ฟังก์ชันคำนวณราคาผลไม้
--- ============================================
-function GetFruitPrice(fruitName, sizeMultiplier, mutation, tax)
-    if not FruitValueCalc then
-        return 0
-    end
-    
-    sizeMultiplier = sizeMultiplier or 1
-    mutation = mutation or "Normal"
-    tax = tax or 0
-    
-    local success, price = pcall(function()
-        return FruitValueCalc(fruitName, sizeMultiplier, mutation, player, tax)
-    end)
-    
-    if success and type(price) == "number" then
-        return price
-    end
-    return 0
-end
-
-function GetFruitPriceInfo(fruitName)
-    local normalPrice = GetFruitPrice(fruitName, 1, "Normal", 0)
-    local bigPrice = GetFruitPrice(fruitName, 5, "Normal", 0)
-    local hugePrice = GetFruitPrice(fruitName, 10, "Normal", 0)
-    
-    local mutations = {"Normal", "Shiny", "Golden", "Rainbow"}
-    local mutationPrices = {}
-    for _, mut in ipairs(mutations) do
-        mutationPrices[mut] = GetFruitPrice(fruitName, 1, mut, 0)
-    end
-    
-    return {
-        normal = normalPrice,
-        big = bigPrice,
-        huge = hugePrice,
-        mutations = mutationPrices
-    }
-end
-
--- ============================================
--- 🔥 ฟังก์ชันดึงผลไม้จาก Backpack
--- ============================================
-function GetFruitsFromBackpack()
-    local fruits = {}
-    local backpack = player:FindFirstChild("Backpack")
-    
-    if not backpack then
-        return fruits
-    end
-    
-    for _, item in ipairs(backpack:GetChildren()) do
-        -- เช็คว่าเป็น Tool และมีชื่อที่บ่งบอกว่าเป็นผลไม้
-        if item:IsA("Tool") then
-            local name = item.Name
-            
-            -- ตรวจสอบว่าเป็นผลไม้ (มีรูปแบบ ชื่อ [Mutation] [ขนาด])
-            local fruitName = name
-            local mutation = "Normal"
-            local size = 1
-            
-            -- แยก Mutation และ Size ออกจากชื่อ
-            local match = string.match(name, "^(.-)%s*%[(.-)%]%s*%[(.-)%]$")
-            if match then
-                fruitName = match:match("^(.-)%s+%[") or match
-                -- หรือใช้ pattern ที่ง่ายกว่า
-                local parts = {}
-                for part in string.gmatch(name, "%[([^%]]+)%]") do
-                    table.insert(parts, part)
-                end
-                
-                if #parts >= 2 then
-                    mutation = parts[1] or "Normal"
-                    -- size = parts[2] (เช่น "14.79kg")
-                end
-            end
-            
-            -- รายชื่อผลไม้ที่รู้จัก
-            local fruitList = {
-                "Carrot", "Tomato", "Apple", "Gold", "Star Fruit",
-                "Mushroom", "Dragon's Breath", "Venus Fly Trap",
-                "Venom Spitter", "Fire Fern", "Sun Bloom",
-                "Hypno Bloom", "Mega", "Moon Bloom", "Rainbow",
-                "Tulip", "Pomegranate", "Strawberry", "Bamboo"
-            }
-            
-            -- ตรวจสอบว่าเป็นผลไม้หรือไม่
-            local isFruit = false
-            for _, fName in ipairs(fruitList) do
-                if string.find(name, fName) then
-                    isFruit = true
-                    break
-                end
-            end
-            
-            if isFruit then
-                -- ดึงขนาดจากชื่อ
-                local sizeMatch = string.match(name, "%[(%d+%.?%d*)kg%]")
-                local sizeMultiplier = sizeMatch and tonumber(sizeMatch) or 1
-                
-                table.insert(fruits, {
-                    name = fruitName,
-                    fullName = name,
-                    mutation = mutation,
-                    size = sizeMultiplier,
-                    displayName = fruitName,
-                    category = "🍎 Fruits",
-                    IsFruit = true,
-                    Count = 1 -- แต่ละชิ้นนับเป็น 1
-                })
-            end
-        end
-    end
-    
-    return fruits
-end
-
--- ============================================
--- 🔥 แก้ไขฟังก์ชัน GetMyInventory
+-- ฟังก์ชันดึง Inventory
 -- ============================================
 function GetMyInventory()
     local items = {}
     
-    -- 1. ดึงจาก Backpack (ผลไม้)
-    local fruits = GetFruitsFromBackpack()
-    for _, fruit in ipairs(fruits) do
-        local price = GetFruitPrice(fruit.name, fruit.size or 1, fruit.mutation or "Normal", 0)
-        table.insert(items, {
-            Category = "🍎 Fruits",
-            ItemKey = fruit.fullName,
-            Count = 1,
-            DisplayName = fruit.fullName,
-            IsFruit = true,
-            Price = price,
-            FruitData = fruit
-        })
-    end
-    
-    -- 2. ดึงจาก Inventory (ไอเท็มอื่นๆ)
     local success, PlayerStateClient = pcall(function()
         return require(ReplicatedStorage:WaitForChild("ClientModules"):WaitForChild("PlayerStateClient"))
     end)
@@ -285,7 +58,7 @@ function GetMyInventory()
             
             local categories = {
                 Trowels = "Trowels",
-                Seeds = "🌱 Seeds",
+                Seeds = "Seeds", 
                 Sprinklers = "Sprinklers",
                 WateringCans = "WateringCans",
                 Mushrooms = "Mushrooms",
@@ -293,32 +66,19 @@ function GetMyInventory()
                 Raccoons = "Raccoons",
                 Crates = "Crates",
                 SeedPacks = "SeedPacks",
-                Props = "Props",
-                Stickers = "Stickers",
-                Trophies = "Trophies",
-                Eggs = "Eggs"
+                Props = "Props"
             }
             
             for category, catName in pairs(categories) do
                 if Inventory[category] then
                     for name, count in pairs(Inventory[category]) do
                         if count > 0 then
-                            -- ข้ามเมล็ดพันธุ์ที่เป็นผลไม้ (จะไปโชว์ใน Backpack แทน)
-                            local isFruitSeed = false
-                            for _, fName in ipairs({"Carrot", "Tomato", "Apple", "Gold", "Star Fruit", "Mushroom"}) do
-                                if name == fName then
-                                    isFruitSeed = true
-                                    break
-                                end
-                            end
-                            if not isFruitSeed then
-                                table.insert(items, {
-                                    Category = catName,
-                                    ItemKey = name,
-                                    Count = count,
-                                    DisplayName = name
-                                })
-                            end
+                            table.insert(items, {
+                                Category = catName,
+                                ItemKey = name,
+                                Count = count,
+                                DisplayName = name
+                            })
                         end
                     end
                 end
@@ -344,84 +104,16 @@ function GetMyInventory()
 end
 
 -- ============================================
--- 🔥 แสดงราคาผลไม้
+-- CONFIG
 -- ============================================
-function UpdatePriceDisplay(item)
-    if not priceDisplayFrame then return end
-    
-    if not item or not item.IsFruit then
-        priceDisplayFrame.Visible = false
-        return
-    end
-    
-    priceDisplayFrame.Visible = true
-    
-    -- แยกชื่อผลไม้และข้อมูล
-    local fruitName = item.FruitData and item.FruitData.name or item.ItemKey
-    local mutation = item.FruitData and item.FruitData.mutation or "Normal"
-    local size = item.FruitData and item.FruitData.size or 1
-    
-    local priceInfo = GetFruitPriceInfo(fruitName)
-    
-    if fruitNameLabel then
-        fruitNameLabel.Text = "🍎 " .. fruitName
-    end
-    
-    if pricePerUnitLabel then
-        local price = GetFruitPrice(fruitName, size, mutation, 0)
-        pricePerUnitLabel.Text = "💰 " .. price .. " (ขนาด " .. size .. "x)"
-    end
-    
-    if totalPriceLabel then
-        totalPriceLabel.Text = "💎 รวม: " .. (GetFruitPrice(fruitName, size, mutation, 0) * (item.Count or 1))
-    end
-    
-    if countLabel then
-        countLabel.Text = "📦 x" .. (item.Count or 1)
-    end
-    
-    if sizeLabel then
-        sizeLabel.Text = string.format("ขนาด: 1x=%d | 5x=%d | 10x=%d", 
-            priceInfo.normal, priceInfo.big, priceInfo.huge)
-    end
-end
+local MAX_ITEM_PER_SEND = 9999
+local MAX_SPLIT = 20
+local MAX_PER_ROUND = MAX_ITEM_PER_SEND * MAX_SPLIT
 
 -- ============================================
--- ฟังก์ชันอัปเดต Status
+-- 🔥 หา Item ใน Inventory
 -- ============================================
-local function UpdateStatus(text, color)
-    if statusLabel then
-        statusLabel.Text = text
-        if color then
-            statusLabel.TextColor3 = color
-        end
-    end
-end
-
--- ============================================
--- ฟังก์ชันอัปเดต Batch Info
--- ============================================
-local function UpdateBatchInfo()
-    local totalCount = 0
-    for _, item in ipairs(SelectedItems) do
-        totalCount = totalCount + (item.Count or 1)
-    end
-    
-    if batchInfoLabel then
-        if totalCount > 0 then
-            local rounds = math.ceil(totalCount / MAX_PER_ROUND)
-            batchInfoLabel.Text = string.format("📦 %d", totalCount)
-            batchInfoLabel.TextColor3 = rounds > 1 and Color3.fromRGB(255, 200, 100) or Color3.fromRGB(200, 200, 100)
-        else
-            batchInfoLabel.Text = ""
-        end
-    end
-end
-
--- ============================================
--- หาจำนวนของที่มีจริง
--- ============================================
-function GetRealItemCount(category, itemKey)
+function GetItemCount(category, itemKey)
     for _, item in ipairs(InventoryItems) do
         if item.Category == category and item.ItemKey == itemKey then
             return item.Count or 0
@@ -431,251 +123,21 @@ function GetRealItemCount(category, itemKey)
 end
 
 -- ============================================
--- CLAIM MAIL SYSTEM
+-- SEND BATCH (Split ไม่จำกัด)
 -- ============================================
-
-function CheckAllMail()
-    local success, inbox = pcall(function()
-        return Mailbox.OpenInbox:Fire()
-    end)
-    
-    if not success or not inbox then
-        return {}, 0
-    end
-    
-    local mailList = {}
-    local count = 0
-    
-    for id, data in pairs(inbox) do
-        if type(data) == "table" then
-            local hasItems = false
-            if data.Items and type(data.Items) == "table" and #data.Items > 0 then
-                hasItems = true
-            elseif data.Category and data.ItemName then
-                hasItems = true
-            elseif data.Kind == "GuildReward" then
-                hasItems = true
-            end
-            
-            if hasItems then
-                table.insert(mailList, {
-                    id = id,
-                    data = data,
-                    from = data.FromName or data.From or "Unknown",
-                    note = data.Note or ""
-                })
-                count = count + 1
-            end
-        end
-    end
-    
-    return mailList, count
-end
-
-function ClaimAllMail()
-    if isClaiming then
-        UpdateStatus("⏳ กำลังรับเมลอยู่...", Color3.fromRGB(255, 200, 100))
-        return
-    end
-    
-    local success, inbox = pcall(function()
-        return Mailbox.OpenInbox:Fire()
-    end)
-    
-    if not success or not inbox then
-        UpdateStatus("❌ เปิดกล่องจดหมายล้มเหลว!", Color3.fromRGB(255, 150, 150))
-        return
-    end
-    
-    local totalGifts = 0
-    for id, data in pairs(inbox) do
-        if type(data) == "table" then
-            totalGifts = totalGifts + 1
-        end
-    end
-    
-    if totalGifts == 0 then
-        UpdateStatus("📭 ไม่มีเมลรอรับ!", Color3.fromRGB(200, 200, 200))
-        return
-    end
-    
-    isClaiming = true
-    UpdateStatus("📬 กำลังรับเมลทั้งหมด " .. totalGifts .. " รายการ...", Color3.fromRGB(255, 200, 100))
-    
-    if claimAllBtn then
-        claimAllBtn.Text = "⏳ กำลังรับ..."
-        claimAllBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
-    end
-    
-    local claimSuccess, claimResult = pcall(function()
-        return Mailbox.ClaimAll:Fire()
-    end)
-    
-    if claimSuccess then
-        UpdateStatus("✅ รับเมลทั้งหมด " .. totalGifts .. " รายการสำเร็จ!", Color3.fromRGB(150, 255, 150))
-    else
-        UpdateStatus("❌ รับเมลล้มเหลว: " .. tostring(claimResult), Color3.fromRGB(255, 150, 150))
-    end
-    
-    isClaiming = false
-    
-    if claimAllBtn then
-        claimAllBtn.Text = "📬 รับทั้งหมด"
-        claimAllBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 50)
-    end
-    
-    UpdateMailCount()
-end
-
-function ClaimSingleMail()
-    if isClaiming then
-        UpdateStatus("⏳ กำลังรับเมลอยู่...", Color3.fromRGB(255, 200, 100))
-        return
-    end
-    
-    local success, inbox = pcall(function()
-        return Mailbox.OpenInbox:Fire()
-    end)
-    
-    if not success or not inbox then
-        UpdateStatus("❌ เปิดกล่องจดหมายล้มเหลว!", Color3.fromRGB(255, 150, 150))
-        return
-    end
-    
-    local totalGifts = 0
-    local firstMailId = nil
-    local firstName = "Unknown"
-    
-    for id, data in pairs(inbox) do
-        if type(data) == "table" then
-            totalGifts = totalGifts + 1
-            if firstMailId == nil then
-                firstMailId = id
-                firstName = data.FromName or data.From or "Unknown"
-            end
-        end
-    end
-    
-    if totalGifts == 0 then
-        UpdateStatus("📭 ไม่มีเมลรอรับ!", Color3.fromRGB(200, 200, 200))
-        return
-    end
-    
-    isClaiming = true
-    UpdateStatus("📬 กำลังรับจาก: " .. firstName, Color3.fromRGB(255, 200, 100))
-    
-    if claimSingleBtn then
-        claimSingleBtn.Text = "⏳ กำลังรับ..."
-        claimSingleBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
-    end
-    
-    local claimSuccess = pcall(function()
-        return Mailbox.Claim:Fire(firstMailId)
-    end)
-    
-    if claimSuccess then
-        UpdateStatus("✅ รับเมลจาก " .. firstName .. " สำเร็จ!", Color3.fromRGB(150, 255, 150))
-    else
-        UpdateStatus("❌ รับเมลจาก " .. firstName .. " ล้มเหลว!", Color3.fromRGB(255, 150, 150))
-    end
-    
-    if claimSingleBtn then
-        claimSingleBtn.Text = "📬 1"
-        claimSingleBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 100)
-    end
-    
-    isClaiming = false
-    UpdateMailCount()
-end
-
-function UpdateMailCount()
-    local success, inbox = pcall(function()
-        return Mailbox.OpenInbox:Fire()
-    end)
-    
-    if not success or not inbox then
-        mailCount = 0
-        if mailBadge then
-            mailBadge.Text = "📭"
-            mailBadge.TextColor3 = Color3.fromRGB(150, 150, 200)
-        end
-        if claimAllBtn then
-            claimAllBtn.Text = "📭 ไม่มีเมล"
-        end
-        return
-    end
-    
-    local totalGifts = 0
-    for id, data in pairs(inbox) do
-        if type(data) == "table" then
-            totalGifts = totalGifts + 1
-        end
-    end
-    
-    mailCount = totalGifts
-    
-    if mailBadge then
-        if mailCount > 0 then
-            mailBadge.Text = "📬 " .. mailCount
-            mailBadge.TextColor3 = Color3.fromRGB(255, 200, 100)
-        else
-            mailBadge.Text = "📭"
-            mailBadge.TextColor3 = Color3.fromRGB(150, 150, 200)
-        end
-    end
-    
-    if claimAllBtn then
-        if mailCount > 0 then
-            claimAllBtn.Text = "📬 รับทั้งหมด"
-        else
-            claimAllBtn.Text = "📭 ไม่มีเมล"
-        end
-    end
-end
-
--- 🔥 SEND BATCH
 function SendBatchMail(targetUserId, items, note)
     if isSending then return false end
     if not targetUserId or targetUserId <= 0 then return false end
     if not items or #items == 0 then return false end
 
-    local validItems = {}
-    local hasError = false
-    
-    for _, item in ipairs(items) do
-        local realCount = GetRealItemCount(item.Category, item.ItemKey)
-        local requestedCount = item.Count or 1
-        
-        if realCount <= 0 then
-            UpdateStatus(string.format("⚠️ ไม่มี %s ใน Inventory!", item.ItemKey), Color3.fromRGB(255, 200, 100))
-            hasError = true
-        elseif requestedCount > realCount then
-            UpdateStatus(string.format("⚠️ %s มี %d ชิ้น (ปรับจาก %d)", item.ItemKey, realCount, requestedCount), Color3.fromRGB(255, 200, 100))
-            table.insert(validItems, {
-                Category = item.Category,
-                ItemKey = item.ItemKey,
-                Count = realCount
-            })
-        else
-            table.insert(validItems, {
-                Category = item.Category,
-                ItemKey = item.ItemKey,
-                Count = requestedCount
-            })
-        end
-    end
-    
-    if hasError and #validItems == 0 then
-        return false
-    end
-
     isSending = true
 
     local batchData = {}
 
-    for _, item in ipairs(validItems) do
+    for _, item in ipairs(items) do
         local count = item.Count or 1
 
+        -- 🔥 split ไม่จำกัด
         while count > 0 do
             local sendAmount = math.min(count, MAX_ITEM_PER_SEND)
 
@@ -697,97 +159,107 @@ function SendBatchMail(targetUserId, items, note)
     return success
 end
 
+-- ============================================
+-- SEND SINGLE
+-- ============================================
 function SendSingleMail(targetUserId, category, itemKey, count, note)
-    local realCount = GetRealItemCount(category, itemKey)
-    
-    if realCount <= 0 then
-        UpdateStatus(string.format("⚠️ ไม่มี %s ใน Inventory!", itemKey), Color3.fromRGB(255, 200, 100))
-        return false
-    end
-    
-    local sendCount = count or 1
-    if sendCount > realCount then
-        UpdateStatus(string.format("⚠️ %s มี %d ชิ้น (ปรับจาก %d)", itemKey, realCount, sendCount), Color3.fromRGB(255, 200, 100))
-        sendCount = realCount
-    end
-    
     local items = {
-        {Category = category, ItemKey = itemKey, Count = sendCount}
+        {Category = category, ItemKey = itemKey, Count = count or 1}
     }
     return SendBatchMail(targetUserId, items, note)
 end
 
 -- ============================================
--- AUTO CLAIM MAIL
+-- 🔥 SEND หลายรอบ + เช็คของก่อนส่ง
 -- ============================================
-function AutoClaimLoop()
-    while autoClaimEnabled and screenGui and screenGui.Parent do
-        local mailList, total = CheckAllMail()
-        
-        if total > 0 then
-            UpdateStatus("🤖 Auto Claim: พบ " .. total .. " เมล กำลังรับ...", Color3.fromRGB(255, 200, 100))
-            
-            local success, result = pcall(function()
-                return Mailbox.ClaimAll:Fire()
-            end)
-            
-            if success then
-                UpdateStatus("🤖 Auto Claim: รับเมล " .. total .. " รายการสำเร็จ!", Color3.fromRGB(150, 255, 150))
-            else
-                UpdateStatus("🤖 Auto Claim: ล้มเหลว!", Color3.fromRGB(255, 150, 150))
-            end
-            
-            UpdateMailCount()
+function SendItemMulti(targetUserId, category, itemKey, totalAmount, note, onProgress)
+    totalAmount = math.floor(totalAmount or 0)
+    if totalAmount <= 0 then
+        return 0, 0, 0
+    end
+
+    -- 🔥 เช็คของที่มีจริง
+    local haveAmount = GetItemCount(category, itemKey)
+
+    if haveAmount <= 0 then
+        warn("ไม่มีของนี้ใน inventory")
+        return 0, 0, 0
+    end
+
+    -- 🔥 ถ้าใส่เกิน → ตัดให้เท่าที่มี
+    if totalAmount > haveAmount then
+        warn("จำนวนเกิน ปรับเป็นสูงสุดที่มี: " .. haveAmount)
+        totalAmount = haveAmount
+    end
+
+    local totalRounds = math.ceil(totalAmount / MAX_PER_ROUND)
+    local remaining = totalAmount
+
+    local successRounds = 0
+    local failRounds = 0
+    local roundIndex = 0
+
+    while remaining > 0 do
+        roundIndex = roundIndex + 1
+
+        local roundAmount = math.min(remaining, MAX_PER_ROUND)
+
+        if onProgress then
+            onProgress(roundIndex, totalRounds, roundAmount)
+        end
+
+        local ok = SendSingleMail(targetUserId, category, itemKey, roundAmount, note)
+
+        if ok then
+            successRounds = successRounds + 1
         else
-            if autoClaimEnabled then
-                UpdateStatus("🤖 Auto Claim: ไม่มีเมล รอตรวจสอบ...", Color3.fromRGB(200, 200, 200))
-            end
+            failRounds = failRounds + 1
         end
-        
-        for i = 1, 30 do
-            if not autoClaimEnabled or not screenGui or not screenGui.Parent then
-                return
-            end
-            task.wait(1)
-        end
+
+        remaining = remaining - roundAmount
+        task.wait(0.15)
     end
+
+    return successRounds, failRounds, totalRounds
 end
 
-function ToggleAutoClaim()
-    autoClaimEnabled = not autoClaimEnabled
-    
-    if autoClaimEnabled then
-        if autoClaimBtn then
-            autoClaimBtn.Text = "⏸️ ON"
-            autoClaimBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
-            autoClaimBtn.BackgroundTransparency = 0.1
-            autoClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        end
-        UpdateStatus("🤖 Auto Claim เปิดใช้งานแล้ว!", Color3.fromRGB(150, 255, 150))
-        
-        if autoClaimTask then
-            task.cancel(autoClaimTask)
-            autoClaimTask = nil
-        end
-        autoClaimTask = task.spawn(AutoClaimLoop)
-    else
-        if autoClaimBtn then
-            autoClaimBtn.Text = "▶️ OFF"
-            autoClaimBtn.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
-            autoClaimBtn.BackgroundTransparency = 0.3
-            autoClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        end
-        UpdateStatus("⏸️ Auto Claim ปิดแล้ว", Color3.fromRGB(200, 200, 200))
-        
-        if autoClaimTask then
-            task.cancel(autoClaimTask)
-            autoClaimTask = nil
-        end
+-- ส่งไอเทมแบบ Duplex พร้อมแสดงสถานะ (สำหรับจำนวนมากกว่า 19998)
+function SendItemDuplex(targetUserId, category, itemKey, totalAmount, note, onProgress)
+    totalAmount = math.floor(totalAmount or 0)
+    if totalAmount <= 0 then
+        return 0, 0, 0
     end
+
+    local totalRounds = math.ceil(totalAmount / MAX_PER_ROUND)
+    local remaining = totalAmount
+    local roundIndex = 0
+    local successRounds = 0
+    local failRounds = 0
+
+    while remaining > 0 do
+        roundIndex = roundIndex + 1
+        local roundAmount = math.min(MAX_PER_ROUND, remaining)
+        
+        if onProgress then
+            onProgress(roundIndex, totalRounds, roundAmount)
+        end
+
+        local ok = SendSingleMail(targetUserId, category, itemKey, roundAmount, note)
+        if ok then
+            successRounds = successRounds + 1
+        else
+            failRounds = failRounds + 1
+        end
+
+        remaining = remaining - roundAmount
+        task.wait(0.15)
+    end
+
+    return successRounds, failRounds, totalRounds
 end
 
 -- ============================================
--- ระบบค้นหาผู้เล่น
+-- ระบบค้นหาผู้เล่น (Global)
 -- ============================================
 function SearchPlayers(searchText)
     if searchText == "" or searchText == nil then
@@ -854,7 +326,7 @@ function GetPlayerThumbnail(userId)
 end
 
 -- ============================================
--- Category Icons & Colors
+-- Category Icons & Colors (Green Theme)
 -- ============================================
 local CATEGORY_ICONS = {
     Trowels = "🔧",
@@ -867,14 +339,7 @@ local CATEGORY_ICONS = {
     Crates = "📦",
     SeedPacks = "🎒",
     Props = "🎨",
-    Pets = "🐾",
-    Stickers = "📋",
-    Trophies = "🏆",
-    Eggs = "🥚",
-    Rakes = "🧹",
-    Ladders = "🪜",
-    ["🌱 Seeds"] = "🌱",
-    ["🍎 Fruits"] = "🍎"
+    Pets = "🐾"
 }
 
 local CATEGORY_COLORS = {
@@ -888,47 +353,39 @@ local CATEGORY_COLORS = {
     Crates = Color3.fromRGB(200, 200, 100),
     SeedPacks = Color3.fromRGB(200, 180, 80),
     Props = Color3.fromRGB(200, 150, 100),
-    Pets = Color3.fromRGB(255, 200, 100),
-    Stickers = Color3.fromRGB(200, 100, 200),
-    Trophies = Color3.fromRGB(255, 215, 0),
-    Eggs = Color3.fromRGB(255, 200, 200),
-    Rakes = Color3.fromRGB(180, 180, 180),
-    Ladders = Color3.fromRGB(180, 150, 100),
-    ["🌱 Seeds"] = Color3.fromRGB(80, 220, 80),
-    ["🍎 Fruits"] = Color3.fromRGB(255, 200, 80)
+    Pets = Color3.fromRGB(255, 200, 100)
 }
 
 -- ============================================
--- 🔥 สร้าง GUI (ส่วนที่เหลือ)
+-- สร้าง GUI
 -- ============================================
 local function CreateGUI()
     local oldGui = playerGui:FindFirstChild("AutoMailGUI")
     if oldGui then oldGui:Destroy() end
     
-    screenGui = Instance.new("ScreenGui")
+    local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "AutoMailGUI"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
     
-    -- Main Frame (Mini)
+    -- Main Frame
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 580, 0, 500)
-    mainFrame.Position = UDim2.new(0.5, -290, 0.3, -250)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(10, 30, 18)
-    mainFrame.BackgroundTransparency = 0.03
+    mainFrame.Size = UDim2.new(0, 594, 0, 420)
+    mainFrame.Position = UDim2.new(0.5, -297, 0.5, -210)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(8, 35, 18)
+    mainFrame.BackgroundTransparency = 0.05
     mainFrame.BorderSizePixel = 0
     mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
     
-    -- Main Gradient
-    local mainGradient = Instance.new("UIGradient")
-    mainGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 60, 30)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(12, 40, 20)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 25, 14))
+    -- Gradient
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 55, 25)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 25, 12))
     })
-    mainGradient.Rotation = 135
-    mainGradient.Parent = mainFrame
+    gradient.Rotation = 90
+    gradient.Parent = mainFrame
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
@@ -952,8 +409,7 @@ local function CreateGUI()
     -- Title Bar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 36)
-    titleBar.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
-    titleBar.BackgroundTransparency = 0.2
+    titleBar.BackgroundColor3 = Color3.fromRGB(15, 55, 25)
     titleBar.BorderSizePixel = 0
     titleBar.Parent = mainFrame
     
@@ -962,48 +418,25 @@ local function CreateGUI()
     titleCorner.Parent = titleBar
     
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -160, 0, 18)
-    titleLabel.Position = UDim2.new(0, 12, 0, 3)
-    titleLabel.Text = "🌿 Auto Mail System"
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.Size = UDim2.new(1, -80, 1, 0)
+    titleLabel.Position = UDim2.new(0, 12, 0, 0)
+    titleLabel.Text = "🌿 Auto Mail V4 (Duplex Mode)"
+    titleLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     titleLabel.TextSize = 15
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.BackgroundTransparency = 1
     titleLabel.Font = Enum.Font.GothamBold
     titleLabel.Parent = titleBar
     
-    local subTitle = Instance.new("TextLabel")
-    subTitle.Size = UDim2.new(1, -160, 0, 12)
-    subTitle.Position = UDim2.new(0, 12, 0, 22)
-    subTitle.Text = "✨ ส่งของ • รับเมล • Auto Claim"
-    subTitle.TextColor3 = Color3.fromRGB(150, 255, 150)
-    subTitle.TextSize = 9
-    subTitle.TextXAlignment = Enum.TextXAlignment.Left
-    subTitle.BackgroundTransparency = 1
-    subTitle.Font = Enum.Font.Gotham
-    subTitle.Parent = titleBar
-    
-    -- Mail Badge
-    mailBadge = Instance.new("TextLabel")
-    mailBadge.Size = UDim2.new(0, 45, 1, 0)
-    mailBadge.Position = UDim2.new(1, -100, 0, 0)
-    mailBadge.Text = "📭"
-    mailBadge.TextColor3 = Color3.fromRGB(150, 150, 200)
-    mailBadge.TextSize = 14
-    mailBadge.BackgroundTransparency = 1
-    mailBadge.Font = Enum.Font.GothamBold
-    mailBadge.TextXAlignment = Enum.TextXAlignment.Right
-    mailBadge.Parent = titleBar
-    
     -- Close Button
     local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 26, 0, 26)
-    closeBtn.Position = UDim2.new(1, -34, 0, 5)
+    closeBtn.Size = UDim2.new(0, 28, 0, 28)
+    closeBtn.Position = UDim2.new(1, -36, 0, 4)
     closeBtn.Text = "✕"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     closeBtn.TextSize = 14
     closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    closeBtn.BackgroundTransparency = 0.4
+    closeBtn.BackgroundTransparency = 0.5
     closeBtn.BorderSizePixel = 0
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.Parent = titleBar
@@ -1054,48 +487,36 @@ local function CreateGUI()
         end
     end)
     
-    -- Content Container
-    local contentContainer = Instance.new("Frame")
-    contentContainer.Size = UDim2.new(1, -12, 1, -44)
-    contentContainer.Position = UDim2.new(0, 6, 0, 42)
-    contentContainer.BackgroundTransparency = 1
-    contentContainer.Parent = mainFrame
-    
     -- Left Panel
     local leftPanel = Instance.new("Frame")
-    leftPanel.Size = UDim2.new(0, 110, 1, 0)
+    leftPanel.Size = UDim2.new(0, 140, 1, -42)
+    leftPanel.Position = UDim2.new(0, 6, 0, 40)
     leftPanel.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    leftPanel.BackgroundTransparency = 0.4
+    leftPanel.BackgroundTransparency = 0.3
     leftPanel.BorderSizePixel = 0
-    leftPanel.Parent = contentContainer
+    leftPanel.Parent = mainFrame
     
     local leftCorner = Instance.new("UICorner")
-    leftCorner.CornerRadius = UDim.new(0, 6)
+    leftCorner.CornerRadius = UDim.new(0, 8)
     leftCorner.Parent = leftPanel
     
-    local leftHeader = Instance.new("Frame")
-    leftHeader.Size = UDim2.new(1, 0, 0, 24)
-    leftHeader.BackgroundColor3 = Color3.fromRGB(20, 55, 28)
-    leftHeader.BackgroundTransparency = 0.2
-    leftHeader.BorderSizePixel = 0
-    leftHeader.Parent = leftPanel
-    
-    local leftHeaderCorner = Instance.new("UICorner")
-    leftHeaderCorner.CornerRadius = UDim.new(0, 6)
-    leftHeaderCorner.Parent = leftHeader
-    
     local leftTitle = Instance.new("TextLabel")
-    leftTitle.Size = UDim2.new(1, 0, 1, 0)
+    leftTitle.Size = UDim2.new(1, 0, 0, 26)
     leftTitle.Text = "📂 หมวดหมู่"
-    leftTitle.TextColor3 = Color3.fromRGB(150, 255, 150)
-    leftTitle.TextSize = 10
-    leftTitle.BackgroundTransparency = 1
+    leftTitle.TextColor3 = Color3.fromRGB(120, 255, 150)
+    leftTitle.TextSize = 11
+    leftTitle.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
+    leftTitle.BorderSizePixel = 0
     leftTitle.Font = Enum.Font.GothamBold
-    leftTitle.Parent = leftHeader
+    leftTitle.Parent = leftPanel
     
-    categoryList = Instance.new("ScrollingFrame")
-    categoryList.Size = UDim2.new(1, -4, 1, -30)
-    categoryList.Position = UDim2.new(0, 2, 0, 28)
+    local leftTitleCorner = Instance.new("UICorner")
+    leftTitleCorner.CornerRadius = UDim.new(0, 8)
+    leftTitleCorner.Parent = leftTitle
+    
+    local categoryList = Instance.new("ScrollingFrame")
+    categoryList.Size = UDim2.new(1, -4, 1, -32)
+    categoryList.Position = UDim2.new(0, 2, 0, 30)
     categoryList.BackgroundTransparency = 1
     categoryList.CanvasSize = UDim2.new(0, 0, 0, 0)
     categoryList.ScrollBarThickness = 2
@@ -1108,50 +529,48 @@ local function CreateGUI()
     
     -- Right Panel
     local rightPanel = Instance.new("Frame")
-    rightPanel.Size = UDim2.new(1, -122, 1, 0)
-    rightPanel.Position = UDim2.new(0, 116, 0, 0)
+    rightPanel.Size = UDim2.new(1, -156, 1, -42)
+    rightPanel.Position = UDim2.new(0, 150, 0, 40)
     rightPanel.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    rightPanel.BackgroundTransparency = 0.4
+    rightPanel.BackgroundTransparency = 0.3
     rightPanel.BorderSizePixel = 0
-    rightPanel.Parent = contentContainer
+    rightPanel.Parent = mainFrame
     
     local rightCorner = Instance.new("UICorner")
-    rightCorner.CornerRadius = UDim.new(0, 6)
+    rightCorner.CornerRadius = UDim.new(0, 8)
     rightCorner.Parent = rightPanel
     
     -- Recipient Section
     local recipientFrame = Instance.new("Frame")
-    recipientFrame.Size = UDim2.new(1, -6, 0, 48)
-    recipientFrame.Position = UDim2.new(0, 3, 0, 3)
+    recipientFrame.Size = UDim2.new(1, -8, 0, 52)
+    recipientFrame.Position = UDim2.new(0, 4, 0, 4)
     recipientFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-    recipientFrame.BackgroundTransparency = 0.3
     recipientFrame.BorderSizePixel = 0
     recipientFrame.Parent = rightPanel
     
     local recCorner = Instance.new("UICorner")
-    recCorner.CornerRadius = UDim.new(0, 5)
+    recCorner.CornerRadius = UDim.new(0, 6)
     recCorner.Parent = recipientFrame
     
     local recLabel = Instance.new("TextLabel")
     recLabel.Size = UDim2.new(0, 55, 0, 14)
-    recLabel.Position = UDim2.new(0, 5, 0, 1)
-    recLabel.Text = "👤 ผู้รับ"
+    recLabel.Position = UDim2.new(0, 6, 0, 1)
+    recLabel.Text = "👤 ผู้รับ:"
     recLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
     recLabel.TextSize = 10
     recLabel.BackgroundTransparency = 1
     recLabel.Font = Enum.Font.GothamBold
     recLabel.Parent = recipientFrame
     
-    searchBox = Instance.new("TextBox")
-    searchBox.Size = UDim2.new(1, -8, 0, 20)
+    local searchBox = Instance.new("TextBox")
+    searchBox.Size = UDim2.new(1, -80, 0, 20)
     searchBox.Position = UDim2.new(0, 4, 0, 17)
     searchBox.Text = ""
-    searchBox.PlaceholderText = "🔍 ค้นหาผู้เล่น..."
+    searchBox.PlaceholderText = "🔍 ค้นหาผู้เล่น... (Enter = ค้นหาทั่วโลก)"
     searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    searchBox.PlaceholderColor3 = Color3.fromRGB(150, 200, 160)
-    searchBox.TextSize = 10
+    searchBox.PlaceholderColor3 = Color3.fromRGB(120, 200, 140)
+    searchBox.TextSize = 11
     searchBox.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-    searchBox.BackgroundTransparency = 0.3
     searchBox.BorderSizePixel = 0
     searchBox.ClearTextOnFocus = true
     searchBox.Font = Enum.Font.Gotham
@@ -1161,22 +580,20 @@ local function CreateGUI()
     searchCorner.CornerRadius = UDim.new(0, 4)
     searchCorner.Parent = searchBox
     
-    -- Selected Player
-    selectedDisplay = Instance.new("Frame")
-    selectedDisplay.Size = UDim2.new(1, -6, 0, 26)
-    selectedDisplay.Position = UDim2.new(0, 3, 0, 40)
-    selectedDisplay.BackgroundColor3 = Color3.fromRGB(18, 55, 28)
-    selectedDisplay.BackgroundTransparency = 0.2
+    local selectedDisplay = Instance.new("Frame")
+    selectedDisplay.Size = UDim2.new(1, -8, 0, 28)
+    selectedDisplay.Position = UDim2.new(0, 4, 0, 39)
+    selectedDisplay.BackgroundColor3 = Color3.fromRGB(18, 52, 28)
     selectedDisplay.BorderSizePixel = 0
     selectedDisplay.Visible = false
     selectedDisplay.Parent = recipientFrame
     
     local selectedCorner = Instance.new("UICorner")
-    selectedCorner.CornerRadius = UDim.new(0, 5)
+    selectedCorner.CornerRadius = UDim.new(0, 4)
     selectedCorner.Parent = selectedDisplay
     
-    avatarImage = Instance.new("ImageLabel")
-    avatarImage.Size = UDim2.new(0, 18, 0, 18)
+    local avatarImage = Instance.new("ImageLabel")
+    avatarImage.Size = UDim2.new(0, 20, 0, 20)
     avatarImage.Position = UDim2.new(0, 4, 0, 4)
     avatarImage.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
     avatarImage.BackgroundTransparency = 0.5
@@ -1184,10 +601,10 @@ local function CreateGUI()
     avatarImage.Parent = selectedDisplay
     
     local avatarCorner = Instance.new("UICorner")
-    avatarCorner.CornerRadius = UDim.new(0, 9)
+    avatarCorner.CornerRadius = UDim.new(0, 10)
     avatarCorner.Parent = avatarImage
     
-    selectedName = Instance.new("TextLabel")
+    local selectedName = Instance.new("TextLabel")
     selectedName.Size = UDim2.new(1, -60, 0, 13)
     selectedName.Position = UDim2.new(0, 28, 0, 1)
     selectedName.Text = ""
@@ -1198,9 +615,9 @@ local function CreateGUI()
     selectedName.Font = Enum.Font.GothamBold
     selectedName.Parent = selectedDisplay
     
-    selectedDisplayName = Instance.new("TextLabel")
+    local selectedDisplayName = Instance.new("TextLabel")
     selectedDisplayName.Size = UDim2.new(1, -60, 0, 10)
-    selectedDisplayName.Position = UDim2.new(0, 28, 0, 14)
+    selectedDisplayName.Position = UDim2.new(0, 28, 0, 15)
     selectedDisplayName.Text = ""
     selectedDisplayName.TextColor3 = Color3.fromRGB(150, 220, 170)
     selectedDisplayName.TextSize = 8
@@ -1209,14 +626,13 @@ local function CreateGUI()
     selectedDisplayName.Font = Enum.Font.Gotham
     selectedDisplayName.Parent = selectedDisplay
 
-    globalBadge = Instance.new("TextLabel")
-    globalBadge.Size = UDim2.new(0, 40, 0, 12)
-    globalBadge.Position = UDim2.new(1, -60, 0, 7)
+    local globalBadge = Instance.new("TextLabel")
+    globalBadge.Size = UDim2.new(0, 42, 0, 12)
+    globalBadge.Position = UDim2.new(1, -66, 0, 8)
     globalBadge.Text = "🌐 GLOBAL"
     globalBadge.TextColor3 = Color3.fromRGB(255, 220, 120)
     globalBadge.TextSize = 7
     globalBadge.BackgroundColor3 = Color3.fromRGB(60, 45, 10)
-    globalBadge.BackgroundTransparency = 0.3
     globalBadge.BorderSizePixel = 0
     globalBadge.Font = Enum.Font.GothamBold
     globalBadge.Visible = false
@@ -1226,9 +642,9 @@ local function CreateGUI()
     globalBadgeCorner.CornerRadius = UDim.new(0, 3)
     globalBadgeCorner.Parent = globalBadge
     
-    clearBtn = Instance.new("TextButton")
+    local clearBtn = Instance.new("TextButton")
     clearBtn.Size = UDim2.new(0, 18, 0, 18)
-    clearBtn.Position = UDim2.new(1, -22, 0, 4)
+    clearBtn.Position = UDim2.new(1, -22, 0, 5)
     clearBtn.Text = "✕"
     clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     clearBtn.TextSize = 9
@@ -1252,9 +668,9 @@ local function CreateGUI()
         clearBtn.MouseButton1Click:Fire()
     end)
     
-    resultsContainer = Instance.new("Frame")
-    resultsContainer.Size = UDim2.new(1, -6, 0, 0)
-    resultsContainer.Position = UDim2.new(0, 3, 0, 40)
+    local resultsContainer = Instance.new("Frame")
+    resultsContainer.Size = UDim2.new(1, -8, 0, 0)
+    resultsContainer.Position = UDim2.new(0, 4, 0, 39)
     resultsContainer.BackgroundTransparency = 1
     resultsContainer.ClipsDescendants = true
     resultsContainer.Parent = recipientFrame
@@ -1265,35 +681,33 @@ local function CreateGUI()
     
     -- Controls
     local controlsFrame = Instance.new("Frame")
-    controlsFrame.Size = UDim2.new(1, -6, 0, 26)
-    controlsFrame.Position = UDim2.new(0, 3, 0, 55)
+    controlsFrame.Size = UDim2.new(1, -8, 0, 26)
+    controlsFrame.Position = UDim2.new(0, 4, 0, 60)
     controlsFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-    controlsFrame.BackgroundTransparency = 0.3
     controlsFrame.BorderSizePixel = 0
     controlsFrame.Parent = rightPanel
     
     local controlsCorner = Instance.new("UICorner")
-    controlsCorner.CornerRadius = UDim.new(0, 5)
+    controlsCorner.CornerRadius = UDim.new(0, 6)
     controlsCorner.Parent = controlsFrame
     
     local qtyLabel = Instance.new("TextLabel")
-    qtyLabel.Size = UDim2.new(0, 20, 1, 0)
+    qtyLabel.Size = UDim2.new(0, 25, 1, 0)
     qtyLabel.Position = UDim2.new(0, 4, 0, 0)
     qtyLabel.Text = "×"
-    qtyLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+    qtyLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
     qtyLabel.TextSize = 12
     qtyLabel.BackgroundTransparency = 1
     qtyLabel.Font = Enum.Font.GothamBold
     qtyLabel.Parent = controlsFrame
     
-    amountBox = Instance.new("TextBox")
-    amountBox.Size = UDim2.new(0, 30, 0, 18)
-    amountBox.Position = UDim2.new(0, 22, 0, 4)
+    local amountBox = Instance.new("TextBox")
+    amountBox.Size = UDim2.new(0, 28, 0, 18)
+    amountBox.Position = UDim2.new(0, 26, 0, 4)
     amountBox.Text = "1"
     amountBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    amountBox.TextSize = 10
+    amountBox.TextSize = 11
     amountBox.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-    amountBox.BackgroundTransparency = 0.3
     amountBox.BorderSizePixel = 0
     amountBox.Font = Enum.Font.Gotham
     amountBox.Parent = controlsFrame
@@ -1302,16 +716,16 @@ local function CreateGUI()
     amountCorner.CornerRadius = UDim.new(0, 4)
     amountCorner.Parent = amountBox
     
-    local quickAmounts = {"1", "5", "10", "100"}
+    -- ปุ่มจำนวน แบบ Duplex (เพิ่ม 19998)
+    local quickAmounts = {"1", "5", "10", "19998"}
     for i, val in ipairs(quickAmounts) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, val == "100" and 24 or 20, 0, 18)
-        btn.Position = UDim2.new(0, 56 + (i-1) * (val == "100" and 28 or 24), 0, 4)
+        btn.Size = UDim2.new(0, val == "19998" and 38 or 22, 0, 18)
+        btn.Position = UDim2.new(0, 58 + (i-1) * (val == "19998" and 42 or 26), 0, 4)
         btn.Text = val
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = val == "100" and 8 or 9
-        btn.BackgroundColor3 = val == "100" and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(18, 52, 28)
-        btn.BackgroundTransparency = 0.3
+        btn.TextSize = val == "19998" and 7 or 9
+        btn.BackgroundColor3 = val == "19998" and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(18, 52, 28)
         btn.BorderSizePixel = 0
         btn.Font = Enum.Font.GothamBold
         btn.Parent = controlsFrame
@@ -1319,13 +733,6 @@ local function CreateGUI()
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 3)
         btnCorner.Parent = btn
-        
-        btn.MouseEnter:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
-        end)
-        btn.MouseLeave:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
-        end)
         
         btn.MouseButton1Click:Connect(function()
             amountBox.Text = val
@@ -1335,16 +742,15 @@ local function CreateGUI()
         end)
     end
     
-    noteBox = Instance.new("TextBox")
-    noteBox.Size = UDim2.new(0, 80, 0, 18)
-    noteBox.Position = UDim2.new(1, -86, 0, 4)
+    local noteBox = Instance.new("TextBox")
+    noteBox.Size = UDim2.new(0, 100, 0, 18)
+    noteBox.Position = UDim2.new(1, -104, 0, 4)
     noteBox.Text = ""
     noteBox.PlaceholderText = "✏️ ข้อความ..."
     noteBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    noteBox.PlaceholderColor3 = Color3.fromRGB(150, 200, 160)
-    noteBox.TextSize = 9
+    noteBox.PlaceholderColor3 = Color3.fromRGB(120, 200, 140)
+    noteBox.TextSize = 10
     noteBox.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-    noteBox.BackgroundTransparency = 0.3
     noteBox.BorderSizePixel = 0
     noteBox.Font = Enum.Font.Gotham
     noteBox.Parent = controlsFrame
@@ -1353,232 +759,62 @@ local function CreateGUI()
     noteCorner.CornerRadius = UDim.new(0, 4)
     noteCorner.Parent = noteBox
     
-    -- 🔥 Price Display (แสดงราคาผลไม้)
-    priceDisplayFrame = Instance.new("Frame")
-    priceDisplayFrame.Size = UDim2.new(1, -6, 0, 48)
-    priceDisplayFrame.Position = UDim2.new(0, 3, 0, 85)
-    priceDisplayFrame.BackgroundColor3 = Color3.fromRGB(20, 55, 30)
-    priceDisplayFrame.BackgroundTransparency = 0.2
-    priceDisplayFrame.BorderSizePixel = 0
-    priceDisplayFrame.Visible = false
-    priceDisplayFrame.Parent = rightPanel
-    
-    local priceCorner = Instance.new("UICorner")
-    priceCorner.CornerRadius = UDim.new(0, 5)
-    priceCorner.Parent = priceDisplayFrame
-    
-    -- Fruit Name
-    fruitNameLabel = Instance.new("TextLabel")
-    fruitNameLabel.Size = UDim2.new(0, 100, 0, 18)
-    fruitNameLabel.Position = UDim2.new(0, 6, 0, 1)
-    fruitNameLabel.Text = "🍎 Carrot"
-    fruitNameLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
-    fruitNameLabel.TextSize = 13
-    fruitNameLabel.BackgroundTransparency = 1
-    fruitNameLabel.Font = Enum.Font.GothamBold
-    fruitNameLabel.TextXAlignment = Enum.TextXAlignment.Left
-    fruitNameLabel.Parent = priceDisplayFrame
-    
-    -- Price per unit
-    pricePerUnitLabel = Instance.new("TextLabel")
-    pricePerUnitLabel.Size = UDim2.new(0, 85, 0, 14)
-    pricePerUnitLabel.Position = UDim2.new(0, 6, 0, 20)
-    pricePerUnitLabel.Text = "💰 100 / ชิ้น"
-    pricePerUnitLabel.TextColor3 = Color3.fromRGB(200, 255, 200)
-    pricePerUnitLabel.TextSize = 10
-    pricePerUnitLabel.BackgroundTransparency = 1
-    pricePerUnitLabel.Font = Enum.Font.Gotham
-    pricePerUnitLabel.TextXAlignment = Enum.TextXAlignment.Left
-    pricePerUnitLabel.Parent = priceDisplayFrame
-    
-    -- Count
-    countLabel = Instance.new("TextLabel")
-    countLabel.Size = UDim2.new(0, 60, 0, 14)
-    countLabel.Position = UDim2.new(0, 95, 0, 20)
-    countLabel.Text = "📦 x100"
-    countLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    countLabel.TextSize = 10
-    countLabel.BackgroundTransparency = 1
-    countLabel.Font = Enum.Font.Gotham
-    countLabel.TextXAlignment = Enum.TextXAlignment.Left
-    countLabel.Parent = priceDisplayFrame
-    
-    -- Total Price
-    totalPriceLabel = Instance.new("TextLabel")
-    totalPriceLabel.Size = UDim2.new(1, -100, 0, 18)
-    totalPriceLabel.Position = UDim2.new(0, 160, 0, 1)
-    totalPriceLabel.Text = "💎 รวม: 10,000"
-    totalPriceLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-    totalPriceLabel.TextSize = 13
-    totalPriceLabel.BackgroundTransparency = 1
-    totalPriceLabel.Font = Enum.Font.GothamBold
-    totalPriceLabel.TextXAlignment = Enum.TextXAlignment.Right
-    totalPriceLabel.Parent = priceDisplayFrame
-    
-    -- Size info
-    sizeLabel = Instance.new("TextLabel")
-    sizeLabel.Size = UDim2.new(1, -8, 0, 12)
-    sizeLabel.Position = UDim2.new(0, 6, 0, 35)
-    sizeLabel.Text = "ขนาด: 1x=100 | 5x=500 | 10x=1,000"
-    sizeLabel.TextColor3 = Color3.fromRGB(150, 200, 200)
-    sizeLabel.TextSize = 8
-    sizeLabel.BackgroundTransparency = 1
-    sizeLabel.Font = Enum.Font.Gotham
-    sizeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    sizeLabel.Parent = priceDisplayFrame
-    
-    -- Item Search
-    local itemSearchFrame = Instance.new("Frame")
-    itemSearchFrame.Size = UDim2.new(1, -6, 0, 22)
-    itemSearchFrame.Position = UDim2.new(0, 3, 0, 137)
-    itemSearchFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-    itemSearchFrame.BackgroundTransparency = 0.3
-    itemSearchFrame.BorderSizePixel = 0
-    itemSearchFrame.Parent = rightPanel
-    
-    local itemSearchCorner = Instance.new("UICorner")
-    itemSearchCorner.CornerRadius = UDim.new(0, 5)
-    itemSearchCorner.Parent = itemSearchFrame
-    
-    local itemSearchLabel = Instance.new("TextLabel")
-    itemSearchLabel.Size = UDim2.new(0, 20, 1, 0)
-    itemSearchLabel.Position = UDim2.new(0, 4, 0, 0)
-    itemSearchLabel.Text = "🔍"
-    itemSearchLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
-    itemSearchLabel.TextSize = 11
-    itemSearchLabel.BackgroundTransparency = 1
-    itemSearchLabel.Font = Enum.Font.Gotham
-    itemSearchLabel.Parent = itemSearchFrame
-    
-    itemSearchBox = Instance.new("TextBox")
-    itemSearchBox.Size = UDim2.new(1, -30, 1, -2)
-    itemSearchBox.Position = UDim2.new(0, 26, 0, 1)
-    itemSearchBox.Text = ""
-    itemSearchBox.PlaceholderText = "🔍 ค้นหาไอเท็ม..."
-    itemSearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    itemSearchBox.PlaceholderColor3 = Color3.fromRGB(150, 200, 160)
-    itemSearchBox.TextSize = 9
-    itemSearchBox.BackgroundTransparency = 1
-    itemSearchBox.BorderSizePixel = 0
-    itemSearchBox.ClearTextOnFocus = true
-    itemSearchBox.Font = Enum.Font.Gotham
-    itemSearchBox.Parent = itemSearchFrame
-    
-    clearSearchBtn = Instance.new("TextButton")
-    clearSearchBtn.Size = UDim2.new(0, 18, 0, 16)
-    clearSearchBtn.Position = UDim2.new(1, -20, 0, 3)
-    clearSearchBtn.Text = "✕"
-    clearSearchBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    clearSearchBtn.TextSize = 8
-    clearSearchBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    clearSearchBtn.BackgroundTransparency = 0.5
-    clearSearchBtn.BorderSizePixel = 0
-    clearSearchBtn.Font = Enum.Font.GothamBold
-    clearSearchBtn.Visible = false
-    clearSearchBtn.Parent = itemSearchFrame
-    
-    local clearSearchCorner = Instance.new("UICorner")
-    clearSearchCorner.CornerRadius = UDim.new(0, 9)
-    clearSearchCorner.Parent = clearSearchBtn
-    
-    clearSearchBtn.MouseButton1Click:Connect(function()
-        itemSearchBox.Text = ""
-        clearSearchBtn.Visible = false
-        itemSearchText = ""
-        BuildCategoryList()
-    end)
-    clearSearchBtn.TouchTap:Connect(function()
-        clearSearchBtn.MouseButton1Click:Fire()
-    end)
-    
-    -- Stats & Actions
+    -- Stats
     local statsFrame = Instance.new("Frame")
-    statsFrame.Size = UDim2.new(1, -6, 0, 26)
-    statsFrame.Position = UDim2.new(0, 3, 0, 163)
+    statsFrame.Size = UDim2.new(1, -8, 0, 20)
+    statsFrame.Position = UDim2.new(0, 4, 0, 90)
     statsFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-    statsFrame.BackgroundTransparency = 0.3
     statsFrame.BorderSizePixel = 0
     statsFrame.Parent = rightPanel
     
     local statsCorner = Instance.new("UICorner")
-    statsCorner.CornerRadius = UDim.new(0, 5)
+    statsCorner.CornerRadius = UDim.new(0, 6)
     statsCorner.Parent = statsFrame
     
-    totalLabel = Instance.new("TextLabel")
-    totalLabel.Size = UDim2.new(0, 40, 1, 0)
-    totalLabel.Position = UDim2.new(0, 4, 0, 0)
-    totalLabel.Text = "📊 0"
+    local totalLabel = Instance.new("TextLabel")
+    totalLabel.Size = UDim2.new(0, 75, 1, 0)
+    totalLabel.Position = UDim2.new(0, 6, 0, 0)
+    totalLabel.Text = "📊 ทั้งหมด: 0"
     totalLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
     totalLabel.TextSize = 9
     totalLabel.TextXAlignment = Enum.TextXAlignment.Left
     totalLabel.BackgroundTransparency = 1
-    totalLabel.Font = Enum.Font.GothamBold
+    totalLabel.Font = Enum.Font.Gotham
     totalLabel.Parent = statsFrame
     
-    selectedLabel = Instance.new("TextLabel")
-    selectedLabel.Size = UDim2.new(0, 35, 1, 0)
-    selectedLabel.Position = UDim2.new(0, 48, 0, 0)
-    selectedLabel.Text = "✅ 0"
+    local selectedLabel = Instance.new("TextLabel")
+    selectedLabel.Size = UDim2.new(0, 75, 1, 0)
+    selectedLabel.Position = UDim2.new(0, 85, 0, 0)
+    selectedLabel.Text = "✅ เลือก: 0"
     selectedLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     selectedLabel.TextSize = 9
     selectedLabel.TextXAlignment = Enum.TextXAlignment.Left
     selectedLabel.BackgroundTransparency = 1
-    selectedLabel.Font = Enum.Font.GothamBold
+    selectedLabel.Font = Enum.Font.Gotham
     selectedLabel.Parent = statsFrame
     
-    batchInfoLabel = Instance.new("TextLabel")
-    batchInfoLabel.Size = UDim2.new(0, 45, 1, 0)
-    batchInfoLabel.Position = UDim2.new(0, 87, 0, 0)
+    -- Batch Info (แสดง Duplex)
+    local batchInfoLabel = Instance.new("TextLabel")
+    batchInfoLabel.Size = UDim2.new(0, 60, 1, 0)
+    batchInfoLabel.Position = UDim2.new(0, 164, 0, 0)
     batchInfoLabel.Text = ""
-    batchInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+    batchInfoLabel.TextColor3 = Color3.fromRGB(200, 200, 100)
     batchInfoLabel.TextSize = 8
     batchInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
     batchInfoLabel.BackgroundTransparency = 1
     batchInfoLabel.Font = Enum.Font.Gotham
     batchInfoLabel.Parent = statsFrame
     
-    autoClaimBtn = Instance.new("TextButton")
-    autoClaimBtn.Size = UDim2.new(0, 50, 0, 16)
-    autoClaimBtn.Position = UDim2.new(1, -130, 0, 5)
-    autoClaimBtn.Text = "▶️ OFF"
-    autoClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    autoClaimBtn.TextSize = 8
-    autoClaimBtn.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
-    autoClaimBtn.BackgroundTransparency = 0.3
-    autoClaimBtn.BorderSizePixel = 0
-    autoClaimBtn.Font = Enum.Font.GothamBold
-    autoClaimBtn.Parent = statsFrame
-    
-    local autoClaimCorner = Instance.new("UICorner")
-    autoClaimCorner.CornerRadius = UDim.new(0, 3)
-    autoClaimCorner.Parent = autoClaimBtn
-    
-    autoClaimBtn.MouseEnter:Connect(function()
-        TweenService:Create(autoClaimBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
-    end)
-    autoClaimBtn.MouseLeave:Connect(function()
-        TweenService:Create(autoClaimBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
-    end)
-    
-    autoClaimBtn.MouseButton1Click:Connect(function()
-        ToggleAutoClaim()
-    end)
-    autoClaimBtn.TouchTap:Connect(function()
-        autoClaimBtn.MouseButton1Click:Fire()
-    end)
-    
-    -- Action Buttons
     local actionBtns = {"✅ ทั้งหมด", "🗑️ ล้าง", "🔄 รีเฟรช"}
     local actionColors = {Color3.fromRGB(0, 160, 70), Color3.fromRGB(180, 45, 45), Color3.fromRGB(40, 120, 60)}
     for i, text in ipairs(actionBtns) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 30, 0, 16)
-        btn.Position = UDim2.new(1, -(8 + (3-i) * 34), 0, 5)
+        btn.Size = UDim2.new(0, 52, 0, 14)
+        btn.Position = UDim2.new(1, -165 + (i-1) * 57, 0, 3)
         btn.Text = text
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 7
+        btn.TextSize = 8
         btn.BackgroundColor3 = actionColors[i]
-        btn.BackgroundTransparency = 0.3
         btn.BorderSizePixel = 0
         btn.Font = Enum.Font.GothamBold
         btn.Parent = statsFrame
@@ -1587,22 +823,13 @@ local function CreateGUI()
         btnCorner.CornerRadius = UDim.new(0, 3)
         btnCorner.Parent = btn
         
-        btn.MouseEnter:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
-        end)
-        btn.MouseLeave:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
-        end)
-        
         if i == 1 then
             btn.MouseButton1Click:Connect(function()
                 SelectedItems = {}
                 for _, item in ipairs(InventoryItems) do
                     table.insert(SelectedItems, item)
                 end
-                if selectedLabel then
-                    selectedLabel.Text = "✅ " .. #SelectedItems
-                end
+                selectedLabel.Text = "✅ เลือก: " .. #SelectedItems
                 UpdateBatchInfo()
                 BuildCategoryList()
             end)
@@ -1610,31 +837,30 @@ local function CreateGUI()
         elseif i == 2 then
             btn.MouseButton1Click:Connect(function()
                 SelectedItems = {}
-                if selectedLabel then
-                    selectedLabel.Text = "✅ 0"
-                end
+                selectedLabel.Text = "✅ เลือก: 0"
                 UpdateBatchInfo()
                 BuildCategoryList()
             end)
             btn.TouchTap:Connect(function() btn.MouseButton1Click:Fire() end)
         else
             btn.MouseButton1Click:Connect(function()
-                UpdateStatus("🔄 โหลด...", Color3.fromRGB(255, 200, 100))
+                statusLabel.Text = "🔄 โหลด..."
+                statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
                 task.wait(0.3)
                 BuildCategoryList()
-                UpdateMailCount()
-                UpdateStatus("✅ รีเฟรชสำเร็จ!", Color3.fromRGB(150, 255, 150))
+                statusLabel.Text = "✅ รีเฟรชสำเร็จ!"
+                statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
             end)
             btn.TouchTap:Connect(function() btn.MouseButton1Click:Fire() end)
         end
     end
     
     -- Item List
-    itemList = Instance.new("ScrollingFrame")
-    itemList.Size = UDim2.new(1, -6, 1, -200)
-    itemList.Position = UDim2.new(0, 3, 0, 193)
+    local itemList = Instance.new("ScrollingFrame")
+    itemList.Size = UDim2.new(1, -8, 1, -118)
+    itemList.Position = UDim2.new(0, 4, 0, 114)
     itemList.BackgroundColor3 = Color3.fromRGB(10, 30, 16)
-    itemList.BackgroundTransparency = 0.4
+    itemList.BackgroundTransparency = 0.3
     itemList.BorderSizePixel = 0
     itemList.CanvasSize = UDim2.new(0, 0, 0, 0)
     itemList.ScrollBarThickness = 3
@@ -1642,7 +868,7 @@ local function CreateGUI()
     itemList.Parent = rightPanel
     
     local listCorner = Instance.new("UICorner")
-    listCorner.CornerRadius = UDim.new(0, 5)
+    listCorner.CornerRadius = UDim.new(0, 6)
     listCorner.Parent = itemList
     
     local itemLayout = Instance.new("UIListLayout")
@@ -1651,21 +877,20 @@ local function CreateGUI()
     
     -- Bottom
     local bottomFrame = Instance.new("Frame")
-    bottomFrame.Size = UDim2.new(1, -6, 0, 36)
-    bottomFrame.Position = UDim2.new(0, 3, 1, -40)
+    bottomFrame.Size = UDim2.new(1, -8, 0, 32)
+    bottomFrame.Position = UDim2.new(0, 4, 1, -36)
     bottomFrame.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-    bottomFrame.BackgroundTransparency = 0.3
     bottomFrame.BorderSizePixel = 0
     bottomFrame.Parent = rightPanel
     
     local bottomCorner = Instance.new("UICorner")
-    bottomCorner.CornerRadius = UDim.new(0, 5)
+    bottomCorner.CornerRadius = UDim.new(0, 6)
     bottomCorner.Parent = bottomFrame
     
-    statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0, 120, 1, 0)
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(0, 140, 1, 0)
     statusLabel.Position = UDim2.new(0, 6, 0, 0)
-    statusLabel.Text = "✅ พร้อมใช้งาน"
+    statusLabel.Text = "✅ พร้อมใช้งาน (Duplex)"
     statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     statusLabel.TextSize = 9
     statusLabel.BackgroundTransparency = 1
@@ -1673,112 +898,47 @@ local function CreateGUI()
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     statusLabel.Parent = bottomFrame
     
-    claimSingleBtn = Instance.new("TextButton")
-    claimSingleBtn.Size = UDim2.new(0, 30, 0, 22)
-    claimSingleBtn.Position = UDim2.new(1, -270, 0, 7)
-    claimSingleBtn.Text = "📬 1"
-    claimSingleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    claimSingleBtn.TextSize = 9
-    claimSingleBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 100)
-    claimSingleBtn.BackgroundTransparency = 0.2
-    claimSingleBtn.BorderSizePixel = 0
-    claimSingleBtn.Font = Enum.Font.GothamBold
-    claimSingleBtn.Parent = bottomFrame
-    
-    local claimSingleCorner = Instance.new("UICorner")
-    claimSingleCorner.CornerRadius = UDim.new(0, 4)
-    claimSingleCorner.Parent = claimSingleBtn
-    
-    claimSingleBtn.MouseEnter:Connect(function()
-        TweenService:Create(claimSingleBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.05}):Play()
-    end)
-    claimSingleBtn.MouseLeave:Connect(function()
-        TweenService:Create(claimSingleBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-    end)
-    
-    claimSingleBtn.MouseButton1Click:Connect(function()
-        ClaimSingleMail()
-    end)
-    claimSingleBtn.TouchTap:Connect(function()
-        claimSingleBtn.MouseButton1Click:Fire()
-    end)
-    
-    claimAllBtn = Instance.new("TextButton")
-    claimAllBtn.Size = UDim2.new(0, 50, 0, 22)
-    claimAllBtn.Position = UDim2.new(1, -215, 0, 7)
-    claimAllBtn.Text = "📬 รับทั้งหมด"
-    claimAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    claimAllBtn.TextSize = 9
-    claimAllBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 50)
-    claimAllBtn.BackgroundTransparency = 0.2
-    claimAllBtn.BorderSizePixel = 0
-    claimAllBtn.Font = Enum.Font.GothamBold
-    claimAllBtn.Parent = bottomFrame
-    
-    local claimAllCorner = Instance.new("UICorner")
-    claimAllCorner.CornerRadius = UDim.new(0, 4)
-    claimAllCorner.Parent = claimAllBtn
-    
-    claimAllBtn.MouseEnter:Connect(function()
-        TweenService:Create(claimAllBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.05}):Play()
-    end)
-    claimAllBtn.MouseLeave:Connect(function()
-        TweenService:Create(claimAllBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-    end)
-    
-    claimAllBtn.MouseButton1Click:Connect(function()
-        ClaimAllMail()
-    end)
-    claimAllBtn.TouchTap:Connect(function()
-        claimAllBtn.MouseButton1Click:Fire()
-    end)
-    
-    sendBtn = Instance.new("TextButton")
-    sendBtn.Size = UDim2.new(0, 90, 0, 26)
-    sendBtn.Position = UDim2.new(1, -98, 0, 5)
-    sendBtn.Text = "🚀 ส่ง"
+    local sendBtn = Instance.new("TextButton")
+    sendBtn.Size = UDim2.new(0, 110, 0, 24)
+    sendBtn.Position = UDim2.new(1, -116, 0, 4)
+    sendBtn.Text = "🚀 ส่งทั้งหมด"
     sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     sendBtn.TextSize = 12
-    sendBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
-    sendBtn.BackgroundTransparency = 0.1
+    sendBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
     sendBtn.BorderSizePixel = 0
     sendBtn.Font = Enum.Font.GothamBold
     sendBtn.Parent = bottomFrame
     
     local sendCorner = Instance.new("UICorner")
-    sendCorner.CornerRadius = UDim.new(0, 4)
+    sendCorner.CornerRadius = UDim.new(0, 6)
     sendCorner.Parent = sendBtn
     
-    -- Send Button Gradient
-    local sendGradient = Instance.new("UIGradient")
-    sendGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 200, 80)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 160, 60))
-    })
-    sendGradient.Rotation = 90
-    sendGradient.Parent = sendBtn
-    
-    sendBtn.MouseEnter:Connect(function()
-        TweenService:Create(sendBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.02}):Play()
-    end)
-    sendBtn.MouseLeave:Connect(function()
-        TweenService:Create(sendBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
-    end)
-    
-    -- ================================
+    -- ============================================
     -- ฟังก์ชันหลัก
-    -- ================================
+    -- ============================================
     
-    function UpdateSearchResults()
-        if not resultsContainer then return end
+    function UpdateBatchInfo()
+        local totalCount = 0
+        for _, item in ipairs(SelectedItems) do
+            totalCount = totalCount + (item.Count or 1)
+        end
         
+        if totalCount > 0 then
+            local rounds = math.ceil(totalCount / MAX_PER_ROUND)
+            batchInfoLabel.Text = string.format("📦 %d (%d รอบ Duplex)", totalCount, rounds)
+            batchInfoLabel.TextColor3 = rounds > 1 and Color3.fromRGB(255, 200, 100) or Color3.fromRGB(200, 200, 100)
+        else
+            batchInfoLabel.Text = ""
+        end
+    end
+
+    function UpdateSearchResults()
         for _, child in ipairs(resultsContainer:GetChildren()) do
             if child:IsA("Frame") then
                 child:Destroy()
             end
         end
         
-        if not searchBox then return end
         local searchText = searchBox.Text
         if searchText == "" or #searchText < 2 then
             resultsContainer.Size = UDim2.new(1, 0, 0, 0)
@@ -1791,13 +951,12 @@ local function CreateGUI()
             return
         end
         
-        resultsContainer.Size = UDim2.new(1, 0, 0, #results * 24 + 4)
+        resultsContainer.Size = UDim2.new(1, 0, 0, #results * 26 + 4)
         
         for _, result in ipairs(results) do
             local row = Instance.new("TextButton")
-            row.Size = UDim2.new(1, 0, 0, 22)
+            row.Size = UDim2.new(1, 0, 0, 24)
             row.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-            row.BackgroundTransparency = 0.3
             row.BorderSizePixel = 0
             row.Parent = resultsContainer
             
@@ -1805,16 +964,9 @@ local function CreateGUI()
             rowCorner.CornerRadius = UDim.new(0, 4)
             rowCorner.Parent = row
             
-            row.MouseEnter:Connect(function()
-                TweenService:Create(row, TweenInfo.new(0.1), {BackgroundTransparency = 0.1}):Play()
-            end)
-            row.MouseLeave:Connect(function()
-                TweenService:Create(row, TweenInfo.new(0.1), {BackgroundTransparency = 0.3}):Play()
-            end)
-            
             local avatar = Instance.new("ImageLabel")
             avatar.Size = UDim2.new(0, 18, 0, 18)
-            avatar.Position = UDim2.new(0, 2, 0, 2)
+            avatar.Position = UDim2.new(0, 3, 0, 3)
             avatar.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
             avatar.BackgroundTransparency = 0.5
             avatar.BorderSizePixel = 0
@@ -1831,7 +983,7 @@ local function CreateGUI()
             
             local nameText = Instance.new("TextLabel")
             nameText.Size = UDim2.new(1, -40, 0, 12)
-            nameText.Position = UDim2.new(0, 24, 0, 0)
+            nameText.Position = UDim2.new(0, 26, 0, 1)
             nameText.Text = result.DisplayName
             nameText.TextColor3 = Color3.fromRGB(255, 255, 255)
             nameText.TextSize = 10
@@ -1841,8 +993,8 @@ local function CreateGUI()
             nameText.Parent = row
             
             local usernameText = Instance.new("TextLabel")
-            usernameText.Size = UDim2.new(1, -40, 0, 9)
-            usernameText.Position = UDim2.new(0, 24, 0, 12)
+            usernameText.Size = UDim2.new(1, -40, 0, 10)
+            usernameText.Position = UDim2.new(0, 26, 0, 12)
             usernameText.Text = "@" .. result.Name
             usernameText.TextColor3 = Color3.fromRGB(150, 220, 170)
             usernameText.TextSize = 7
@@ -1861,10 +1013,10 @@ local function CreateGUI()
     end
 
     function PerformFullSearch()
-        if not searchBox then return end
         local searchText = searchBox.Text
         if searchText == "" or searchText:match("^%s*$") then
-            UpdateStatus("⚠️ พิมพ์ชื่อผู้เล่นก่อน!", Color3.fromRGB(255, 200, 100))
+            statusLabel.Text = "⚠️ พิมพ์ชื่อผู้เล่นก่อน!"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
             return
         end
 
@@ -1874,13 +1026,15 @@ local function CreateGUI()
             return
         end
 
-        UpdateStatus("🌐 ไม่พบในเซิร์ฟเวอร์ กำลังค้นหาทั่วโลก...", Color3.fromRGB(255, 200, 100))
+        statusLabel.Text = "🌐 ไม่พบในเซิร์ฟเวอร์ กำลังค้นหาทั่วโลก..."
+        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 
         local globalResult = SearchPlayerGlobal(searchText)
         if globalResult then
             SelectPlayer(globalResult)
         else
-            UpdateStatus("❌ ไม่พบผู้เล่นชื่อ: " .. searchText, Color3.fromRGB(255, 150, 150))
+            statusLabel.Text = "❌ ไม่พบผู้เล่นชื่อ: " .. searchText
+            statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
         end
     end
     
@@ -1909,57 +1063,41 @@ local function CreateGUI()
         
         searchBox.Text = result.DisplayName
         if result.IsGlobal then
-            UpdateStatus("🌐 เลือก (Global): " .. result.DisplayName, Color3.fromRGB(150, 255, 150))
+            statusLabel.Text = "🌐 เลือก (Global): " .. result.DisplayName
         else
-            UpdateStatus("✅ เลือก: " .. result.DisplayName, Color3.fromRGB(150, 255, 150))
+            statusLabel.Text = "✅ เลือก: " .. result.DisplayName
         end
+        statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     end
     
-    if searchBox then
-        searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-            if searchDebounce then return end
-            searchDebounce = true
-            
-            if selectedPlayer and searchBox.Text == selectedPlayer.DisplayName then
-                searchDebounce = false
-                return
-            end
-            
-            selectedPlayer = nil
-            selectedDisplay.Visible = false
-            globalBadge.Visible = false
-            
-            task.wait(0.2)
-            UpdateSearchResults()
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        if searchDebounce then return end
+        searchDebounce = true
+        
+        if selectedPlayer and searchBox.Text == selectedPlayer.DisplayName then
             searchDebounce = false
-        end)
+            return
+        end
+        
+        selectedPlayer = nil
+        selectedDisplay.Visible = false
+        globalBadge.Visible = false
+        
+        task.wait(0.2)
+        UpdateSearchResults()
+        searchDebounce = false
+    end)
 
-        searchBox.FocusLost:Connect(function(enterPressed)
-            if enterPressed then
-                PerformFullSearch()
-            end
-        end)
-    end
-    
-    -- Item Search
-    if itemSearchBox then
-        itemSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-            itemSearchText = itemSearchBox.Text or ""
-            if itemSearchText ~= "" then
-                clearSearchBtn.Visible = true
-            else
-                clearSearchBtn.Visible = false
-            end
-            BuildCategoryList()
-        end)
-    end
+    searchBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            PerformFullSearch()
+        end
+    end)
     
     -- ================================
     -- Build Category List
     -- ================================
     function BuildCategoryList()
-        if not categoryList or not itemList then return end
-        
         for _, child in ipairs(categoryList:GetChildren()) do
             if child:IsA("TextButton") then
                 child:Destroy()
@@ -1974,24 +1112,8 @@ local function CreateGUI()
         
         InventoryItems = GetMyInventory()
         
-        local filteredItems = {}
-        local searchLower = string.lower(itemSearchText)
-        
-        for _, item in ipairs(InventoryItems) do
-            if searchLower == "" then
-                table.insert(filteredItems, item)
-            else
-                local displayLower = string.lower(item.DisplayName)
-                local categoryLower = string.lower(item.Category)
-                if string.find(displayLower, searchLower, 1, true) or 
-                   string.find(categoryLower, searchLower, 1, true) then
-                    table.insert(filteredItems, item)
-                end
-            end
-        end
-        
         local grouped = {}
-        for _, item in ipairs(filteredItems) do
+        for _, item in ipairs(InventoryItems) do
             if not grouped[item.Category] then
                 grouped[item.Category] = {}
             end
@@ -2005,28 +1127,13 @@ local function CreateGUI()
         table.sort(sortedCategories)
         
         local totalItems = 0
-        for _, item in ipairs(filteredItems) do
+        for _, item in ipairs(InventoryItems) do
             totalItems = totalItems + 1
         end
-        if totalLabel then
-            totalLabel.Text = "📊 " .. totalItems
-        end
+        totalLabel.Text = "📊 ทั้งหมด: " .. totalItems
         
         local leftHeight = 0
         local rightHeight = 0
-        
-        if #sortedCategories == 0 then
-            local emptyLabel = Instance.new("TextLabel")
-            emptyLabel.Size = UDim2.new(1, 0, 0, 40)
-            emptyLabel.Text = "🔍 ไม่พบไอเท็ม"
-            emptyLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-            emptyLabel.TextSize = 12
-            emptyLabel.BackgroundTransparency = 1
-            emptyLabel.Font = Enum.Font.Gotham
-            emptyLabel.Parent = itemList
-            itemList.CanvasSize = UDim2.new(0, 0, 0, 45)
-            return
-        end
         
         for _, catName in ipairs(sortedCategories) do
             local items = grouped[catName]
@@ -2035,13 +1142,12 @@ local function CreateGUI()
             local isExpanded = expandedCategories[catName] or false
             
             local catBtn = Instance.new("TextButton")
-            catBtn.Size = UDim2.new(1, -2, 0, 24)
+            catBtn.Size = UDim2.new(1, -2, 0, 26)
             catBtn.Text = CATEGORY_ICONS[catName] .. " " .. catName .. " (" .. #items .. ")"
             catBtn.TextColor3 = CATEGORY_COLORS[catName] or Color3.fromRGB(150, 255, 150)
-            catBtn.TextSize = 9
+            catBtn.TextSize = 10
             catBtn.TextXAlignment = Enum.TextXAlignment.Left
-            catBtn.BackgroundColor3 = isExpanded and Color3.fromRGB(18, 55, 28) or Color3.fromRGB(10, 30, 16)
-            catBtn.BackgroundTransparency = 0.3
+            catBtn.BackgroundColor3 = isExpanded and Color3.fromRGB(18, 52, 28) or Color3.fromRGB(10, 30, 16)
             catBtn.BorderSizePixel = 0
             catBtn.Font = Enum.Font.Gotham
             catBtn.Parent = categoryList
@@ -2050,14 +1156,7 @@ local function CreateGUI()
             catCorner.CornerRadius = UDim.new(0, 4)
             catCorner.Parent = catBtn
             
-            catBtn.MouseEnter:Connect(function()
-                TweenService:Create(catBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.1}):Play()
-            end)
-            catBtn.MouseLeave:Connect(function()
-                TweenService:Create(catBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.3}):Play()
-            end)
-            
-            leftHeight = leftHeight + 24 + 2
+            leftHeight = leftHeight + 26 + 2
             
             catBtn.MouseButton1Click:Connect(function()
                 expandedCategories[catName] = not expandedCategories[catName]
@@ -2070,9 +1169,8 @@ local function CreateGUI()
             if isExpanded then
                 for _, item in ipairs(items) do
                     local row = Instance.new("Frame")
-                    row.Size = UDim2.new(1, -2, 0, 24)
+                    row.Size = UDim2.new(1, -2, 0, 26)
                     row.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-                    row.BackgroundTransparency = 0.3
                     row.BorderSizePixel = 0
                     row.Parent = itemList
                     
@@ -2081,13 +1179,12 @@ local function CreateGUI()
                     rowCorner.Parent = row
                     
                     local checkBtn = Instance.new("TextButton")
-                    checkBtn.Size = UDim2.new(0, 18, 0, 18)
+                    checkBtn.Size = UDim2.new(0, 20, 0, 20)
                     checkBtn.Position = UDim2.new(0, 2, 0, 3)
                     checkBtn.Text = "☐"
                     checkBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-                    checkBtn.TextSize = 10
+                    checkBtn.TextSize = 11
                     checkBtn.BackgroundColor3 = Color3.fromRGB(15, 45, 22)
-                    checkBtn.BackgroundTransparency = 0.3
                     checkBtn.BorderSizePixel = 0
                     checkBtn.Parent = row
                     
@@ -2102,15 +1199,14 @@ local function CreateGUI()
                             isSelected = true
                             checkBtn.Text = "☑"
                             checkBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-                            row.BackgroundColor3 = Color3.fromRGB(18, 55, 28)
-                            row.BackgroundTransparency = 0.2
+                            row.BackgroundColor3 = Color3.fromRGB(18, 52, 28)
                             break
                         end
                     end
                     
                     local nameLabel = Instance.new("TextLabel")
-                    nameLabel.Size = UDim2.new(0, 100, 1, 0)
-                    nameLabel.Position = UDim2.new(0, 24, 0, 0)
+                    nameLabel.Size = UDim2.new(0, 120, 1, 0)
+                    nameLabel.Position = UDim2.new(0, 26, 0, 0)
                     nameLabel.Text = item.DisplayName
                     nameLabel.TextColor3 = Color3.fromRGB(220, 255, 220)
                     nameLabel.TextSize = 10
@@ -2121,7 +1217,7 @@ local function CreateGUI()
                     
                     local amtLabel = Instance.new("TextLabel")
                     amtLabel.Size = UDim2.new(0, 35, 1, 0)
-                    amtLabel.Position = UDim2.new(0, 128, 0, 0)
+                    amtLabel.Position = UDim2.new(0, 150, 0, 0)
                     amtLabel.Text = "x" .. item.Count
                     amtLabel.TextColor3 = Color3.fromRGB(200, 200, 100)
                     amtLabel.TextSize = 9
@@ -2130,32 +1226,14 @@ local function CreateGUI()
                     amtLabel.Font = Enum.Font.Gotham
                     amtLabel.Parent = row
                     
-                    -- 🔥 Click to show price (เฉพาะผลไม้)
-                    if item.IsFruit then
-                        local selectArea = Instance.new("TextButton")
-                        selectArea.Size = UDim2.new(1, -50, 1, 0)
-                        selectArea.BackgroundTransparency = 1
-                        selectArea.BorderSizePixel = 0
-                        selectArea.Text = ""
-                        selectArea.Parent = row
-                        
-                        selectArea.MouseButton1Click:Connect(function()
-                            selectedFruitInfo = item
-                            UpdatePriceDisplay(item)
-                        end)
-                        selectArea.TouchTap:Connect(function()
-                            selectArea.MouseButton1Click:Fire()
-                        end)
-                    end
-                    
+                    -- Send One (Duplex)
                     local sendOneBtn = Instance.new("TextButton")
-                    sendOneBtn.Size = UDim2.new(0, 36, 0, 16)
-                    sendOneBtn.Position = UDim2.new(1, -40, 0, 4)
+                    sendOneBtn.Size = UDim2.new(0, 38, 0, 16)
+                    sendOneBtn.Position = UDim2.new(1, -42, 0, 5)
                     sendOneBtn.Text = "ส่ง 1"
                     sendOneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    sendOneBtn.TextSize = 7
-                    sendOneBtn.BackgroundColor3 = Color3.fromRGB(35, 140, 60)
-                    sendOneBtn.BackgroundTransparency = 0.2
+                    sendOneBtn.TextSize = 8
+                    sendOneBtn.BackgroundColor3 = Color3.fromRGB(35, 130, 55)
                     sendOneBtn.BorderSizePixel = 0
                     sendOneBtn.Font = Enum.Font.GothamBold
                     sendOneBtn.Parent = row
@@ -2164,35 +1242,56 @@ local function CreateGUI()
                     sendOneCorner.CornerRadius = UDim.new(0, 3)
                     sendOneCorner.Parent = sendOneBtn
                     
-                    sendOneBtn.MouseEnter:Connect(function()
-                        TweenService:Create(sendOneBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.05}):Play()
-                    end)
-                    sendOneBtn.MouseLeave:Connect(function()
-                        TweenService:Create(sendOneBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-                    end)
-                    
                     sendOneBtn.MouseButton1Click:Connect(function()
                         if not selectedPlayer then
-                            UpdateStatus("⚠️ เลือกผู้รับก่อน!", Color3.fromRGB(255, 200, 100))
+                            statusLabel.Text = "⚠️ เลือกผู้รับก่อน!"
+                            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
                             return
                         end
                         local amt = tonumber(amountBox.Text) or 1
                         if amt <= 0 then
-                            UpdateStatus("⚠️ จำนวนไม่ถูกต้อง!", Color3.fromRGB(255, 200, 100))
+                            statusLabel.Text = "⚠️ จำนวนไม่ถูกต้อง!"
+                            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
                             return
                         end
 
                         local targetUserId = selectedPlayer.UserId
                         local note = noteBox.Text
 
-                        task.spawn(function()
-                            local ok = SendSingleMail(targetUserId, item.Category, item.ItemKey, amt, note)
-                            if ok then
-                                UpdateStatus("✅ ส่ง " .. item.DisplayName .. " x" .. amt .. " สำเร็จ!", Color3.fromRGB(150, 255, 150))
-                            else
-                                UpdateStatus("❌ ส่งล้มเหลว!", Color3.fromRGB(255, 150, 150))
-                            end
-                        end)
+                        -- Duplex Send
+                        if amt <= MAX_PER_ROUND then
+                            task.spawn(function()
+                                local ok = SendSingleMail(targetUserId, item.Category, item.ItemKey, amt, note)
+                                if ok then
+                                    statusLabel.Text = "✅ ส่ง " .. item.DisplayName .. " x" .. amt .. " สำเร็จ! (Duplex)"
+                                    statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+                                else
+                                    statusLabel.Text = "❌ ส่งล้มเหลว!"
+                                    statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
+                                end
+                            end)
+                        else
+                            -- มากกว่า 19998 แบ่งเป็นหลายรอบ Duplex
+                            task.spawn(function()
+                                local successBatches, failBatches, totalBatches = SendItemDuplex(
+                                    targetUserId, item.Category, item.ItemKey, amt, note,
+                                    function(batchIndex, totalB, batchAmt)
+                                        statusLabel.Text = string.format("⏳ %s รอบ %d/%d (%d ชิ้น) [Duplex]", 
+                                            item.DisplayName, batchIndex, totalB, batchAmt)
+                                        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+                                    end
+                                )
+                                if failBatches == 0 then
+                                    statusLabel.Text = string.format("✅ ส่ง %s x%d สำเร็จ! (%d รอบ Duplex)", 
+                                        item.DisplayName, amt, totalBatches)
+                                    statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+                                else
+                                    statusLabel.Text = string.format("⚠️ %s: สำเร็จ %d/%d รอบ", 
+                                        item.DisplayName, successBatches, totalBatches)
+                                    statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+                                end
+                            end)
+                        end
                     end)
                     sendOneBtn.TouchTap:Connect(function()
                         sendOneBtn.MouseButton1Click:Fire()
@@ -2203,14 +1302,12 @@ local function CreateGUI()
                         if isSelected then
                             checkBtn.Text = "☑"
                             checkBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-                            row.BackgroundColor3 = Color3.fromRGB(18, 55, 28)
-                            row.BackgroundTransparency = 0.2
+                            row.BackgroundColor3 = Color3.fromRGB(18, 52, 28)
                             table.insert(SelectedItems, item)
                         else
                             checkBtn.Text = "☐"
                             checkBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
                             row.BackgroundColor3 = Color3.fromRGB(12, 38, 20)
-                            row.BackgroundTransparency = 0.3
                             for i, selected in ipairs(SelectedItems) do
                                 if selected == item then
                                     table.remove(SelectedItems, i)
@@ -2218,16 +1315,14 @@ local function CreateGUI()
                                 end
                             end
                         end
-                        if selectedLabel then
-                            selectedLabel.Text = "✅ " .. #SelectedItems
-                        end
+                        selectedLabel.Text = "✅ เลือก: " .. #SelectedItems
                         UpdateBatchInfo()
                     end)
                     checkBtn.TouchTap:Connect(function()
                         checkBtn.MouseButton1Click:Fire()
                     end)
                     
-                    rightHeight = rightHeight + 24 + 2
+                    rightHeight = rightHeight + 26 + 2
                 end
             end
         end
@@ -2235,108 +1330,93 @@ local function CreateGUI()
         categoryList.CanvasSize = UDim2.new(0, 0, 0, leftHeight + 10)
         itemList.CanvasSize = UDim2.new(0, 0, 0, rightHeight + 10)
         
-        if selectedLabel then
-            selectedLabel.Text = "✅ " .. #SelectedItems
-        end
+        selectedLabel.Text = "✅ เลือก: " .. #SelectedItems
         UpdateBatchInfo()
     end
     
     -- ================================
-    -- Send All
+    -- Send All (Duplex)
     -- ================================
     function SendAllSelected()
         if #SelectedItems == 0 then
-            UpdateStatus("⚠️ เลือกไอเท็มก่อน!", Color3.fromRGB(255, 200, 100))
+            statusLabel.Text = "⚠️ เลือกไอเท็มก่อน!"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
             return
         end
         
         if not selectedPlayer then
-            UpdateStatus("⚠️ เลือกผู้รับก่อน!", Color3.fromRGB(255, 200, 100))
+            statusLabel.Text = "⚠️ เลือกผู้รับก่อน!"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
             return
         end
         
         local amt = tonumber(amountBox.Text) or 1
         local note = noteBox.Text or ""
         
-        if sendBtn then
-            sendBtn.Text = "⏳ กำลังส่ง..."
-            sendBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 0)
-        end
-        UpdateStatus("⏳ กำลังส่ง...", Color3.fromRGB(255, 200, 100))
+        sendBtn.Text = "⏳ กำลังส่ง (Duplex)..."
+        sendBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 0)
+        statusLabel.Text = "⏳ กำลังส่งแบบ Duplex..."
+        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
         
         local successCount = 0
         local failCount = 0
+        local totalRounds = 0
 
         for i, item in ipairs(SelectedItems) do
-            local realCount = GetRealItemCount(item.Category, item.ItemKey)
-            local sendAmount = amt
-            
-            if realCount <= 0 then
-                UpdateStatus(string.format("⚠️ ไม่มี %s!", item.DisplayName), Color3.fromRGB(255, 200, 100))
-                failCount = failCount + 1
-                if i < #SelectedItems then
-                    task.wait(0.15)
-                end
-            else
-                if sendAmount > realCount then
-                    UpdateStatus(string.format("⚠️ %s มี %d ชิ้น", item.DisplayName, realCount), Color3.fromRGB(255, 200, 100))
-                    sendAmount = realCount
-                end
-                
-                UpdateStatus(string.format("⏳ %d/%d: %s x%d", i, #SelectedItems, item.DisplayName, sendAmount), Color3.fromRGB(255, 200, 100))
-                
-                local ok = SendSingleMail(selectedPlayer.UserId, item.Category, item.ItemKey, sendAmount, note)
+            if amt <= MAX_PER_ROUND then
+                statusLabel.Text = string.format("⏳ %d/%d: %s (Duplex)", i, #SelectedItems, item.DisplayName)
+                local ok = SendSingleMail(selectedPlayer.UserId, item.Category, item.ItemKey, amt, note)
                 if ok then
                     successCount = successCount + 1
                 else
                     failCount = failCount + 1
                 end
-                
+                totalRounds = totalRounds + 1
                 task.wait(0.15)
+            else
+                -- มากกว่า 19998 แบ่งเป็นหลายรอบ Duplex
+                local successB, failB, totalB = SendItemDuplex(
+                    selectedPlayer.UserId, item.Category, item.ItemKey, amt, note,
+                    function(batchIndex, totalBatches, batchAmt)
+                        statusLabel.Text = string.format("⏳ %d/%d: %s (รอบ %d/%d Duplex)", 
+                            i, #SelectedItems, item.DisplayName, batchIndex, totalBatches)
+                    end
+                )
+                successCount = successCount + successB
+                failCount = failCount + failB
+                totalRounds = totalRounds + totalB
             end
         end
         
-        if sendBtn then
-            sendBtn.Text = "🚀 ส่ง"
-            sendBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
-        end
-        UpdateStatus(string.format("✅ สำเร็จ %d ล้มเหลว %d", successCount, failCount), Color3.fromRGB(150, 255, 150))
+        sendBtn.Text = "🚀 ส่งทั้งหมด"
+        sendBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+        statusLabel.Text = string.format("✅ Duplex เสร็จ! สำเร็จ %d ล้มเหลว %d (รวม %d รอบ)", 
+            successCount, failCount, totalRounds)
+        statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
         
         SelectedItems = {}
-        if selectedLabel then
-            selectedLabel.Text = "✅ 0"
-        end
+        selectedLabel.Text = "✅ เลือก: 0"
         UpdateBatchInfo()
         BuildCategoryList()
     end
     
-    if sendBtn then
-        sendBtn.MouseButton1Click:Connect(SendAllSelected)
-        sendBtn.TouchTap:Connect(function() sendBtn.MouseButton1Click:Fire() end)
-    end
+    sendBtn.MouseButton1Click:Connect(SendAllSelected)
+    sendBtn.TouchTap:Connect(function() sendBtn.MouseButton1Click:Fire() end)
     
     -- ================================
     -- เริ่มต้น
     -- ================================
     
-    UpdateStatus("🔄 โหลด...", Color3.fromRGB(255, 200, 100))
+    statusLabel.Text = "🔄 โหลด..."
+    statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
     task.wait(0.3)
     BuildCategoryList()
-    UpdateMailCount()
-    UpdateStatus("✅ พร้อมใช้งาน!", Color3.fromRGB(150, 255, 150))
+    statusLabel.Text = "✅ พร้อมใช้งาน! (Duplex Mode)"
+    statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     
-    -- Auto refresh ทุก 30 วินาที
-    task.spawn(function()
-        while screenGui and screenGui.Parent do
-            task.wait(30)
-            UpdateMailCount()
-        end
-    end)
-    
-    print("✅ Auto Mail V14 (Fixed Fruits) พร้อมใช้งาน!")
-    print("📌 คลิกที่ผลไม้เพื่อดูราคา")
-    print("📌 รับเมล: กด '📬 1' = รับทีละเมล, '📬 รับทั้งหมด' = รับทั้งหมด")
-    print("📌 Auto Claim: กดปุ่ม '▶️ OFF' เพื่อเปิดใช้งาน")
+    print("✅ Auto Mail V4 (Duplex Mode) พร้อมใช้งาน!")
+    print("📌 ส่งแบบ Duplex: สูงสุด 19,998 ชิ้น/รอบ")
+    print("📌 ใช้ 2 รายการใน 1 รอบ: 9,999 + 9,999")
 end
 
 -- ============================================
